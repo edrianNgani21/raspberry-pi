@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     try {
-        const { type, ticket_no, make_model, plate, reason, pic_base64, logged_status } = await request.json();
+        const { type, ticket_no, name, mobile, make_model, plate, purpose, reason, pic_base64, logged_status } = await request.json();
 
         if (!type || (type !== 'in' && type !== 'out')) {
             return json({ error: 'Invalid type (must be in or out)' }, { status: 400 });
@@ -74,14 +74,57 @@ export const POST: RequestHandler = async ({ request }) => {
                 .from('guestlog')
                 .insert({
                     ticket_no: newTicketNo,
+                    name: name || null,
+                    mobile: mobile || null,
                     make_model,
                     plate,
+                    purpose: purpose || reason || null,
                     reason: reason || null,
                     in: new Date().toISOString(),
                     pic_in: picUrl
                 });
 
             if (insertError) throw insertError;
+
+            // Create parking availability record for guest entry
+            // Get current parking capacity settings
+            const { data: settingsData } = await supabase
+                .from('parking_availability')
+                .select('parking_capacity, max_capacity')
+                .eq('id', 1)
+                .single();
+
+            const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+
+            // Get current slot counts from the most recent parking availability record
+            const { data: lastParkingData } = await supabase
+                .from('parking_availability')
+                .select('slot_occupied, slot_unoccupied')
+                .order('date_time', { ascending: false })
+                .limit(1)
+                .single();
+
+            const current_occupied = lastParkingData?.slot_occupied || 0;
+            const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;
+
+            // Calculate new slot counts
+            const new_occupied = current_occupied + 1;
+            const new_unoccupied = Math.max(0, current_unoccupied - 1);
+
+            // Create new parking availability record (use 0 as vehicle_log_id for guests)
+            const { error: parkingError } = await supabase
+                .from('parking_availability')
+                .insert({
+                    vehicle_log_id: 0, // Guests don't have vehicle_log_id
+                    parking_capacity,
+                    slot_occupied: new_occupied,
+                    slot_unoccupied: new_unoccupied
+                });
+
+            if (parkingError) {
+                console.error('[Gate] Parking record error:', parkingError);
+                // Don't throw error - parking is secondary functionality
+            }
 
             return json({ success: true, ticket_no: newTicketNo, message: 'Guest entry recorded' });
 
@@ -113,6 +156,46 @@ export const POST: RequestHandler = async ({ request }) => {
                     .eq('guest_id', rows.guest_id);
 
                 if (updateError) throw updateError;
+
+                // Update parking availability record for guest exit
+                // Get current parking capacity settings
+                const { data: settingsData } = await supabase
+                    .from('parking_availability')
+                    .select('parking_capacity, max_capacity')
+                    .eq('id', 1)
+                    .single();
+
+                const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+
+                // Get current slot counts from the most recent parking availability record
+                const { data: lastParkingData } = await supabase
+                    .from('parking_availability')
+                    .select('slot_occupied, slot_unoccupied')
+                    .order('date_time', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                const current_occupied = lastParkingData?.slot_occupied || 0;
+                const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;
+
+                // Calculate new slot counts
+                const new_occupied = Math.max(0, current_occupied - 1);
+                const new_unoccupied = Math.min(parking_capacity, current_unoccupied + 1);
+
+                // Create new parking availability record (use 0 as vehicle_log_id for guests)
+                const { error: parkingError } = await supabase
+                    .from('parking_availability')
+                    .insert({
+                        vehicle_log_id: 0, // Guests don't have vehicle_log_id
+                        parking_capacity,
+                        slot_occupied: new_occupied,
+                        slot_unoccupied: new_unoccupied
+                    });
+
+                if (parkingError) {
+                    console.error('[Gate] Parking record error:', parkingError);
+                    // Don't throw error - parking is secondary functionality
+                }
             } else {
                 // No open IN found — insert a standalone OUT row
                 const { data: inRows } = await supabase
@@ -130,8 +213,12 @@ export const POST: RequestHandler = async ({ request }) => {
                     .from('guestlog')
                     .insert({
                         ticket_no,
+                        name: name || null,
+                        mobile: mobile || null,
                         make_model: mm,
                         plate: pl,
+                        purpose: purpose || reason || null,
+                        reason: reason || null,
                         in: new Date().toISOString(),
                         out: new Date().toISOString(),
                         pic_out: picUrl,
@@ -139,6 +226,46 @@ export const POST: RequestHandler = async ({ request }) => {
                     });
 
                 if (insertError) throw insertError;
+
+                // Update parking availability record for guest exit
+                // Get current parking capacity settings
+                const { data: settingsData } = await supabase
+                    .from('parking_availability')
+                    .select('parking_capacity, max_capacity')
+                    .eq('id', 1)
+                    .single();
+
+                const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+
+                // Get current slot counts from the most recent parking availability record
+                const { data: lastParkingData } = await supabase
+                    .from('parking_availability')
+                    .select('slot_occupied, slot_unoccupied')
+                    .order('date_time', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                const current_occupied = lastParkingData?.slot_occupied || 0;
+                const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;
+
+                // Calculate new slot counts
+                const new_occupied = Math.max(0, current_occupied - 1);
+                const new_unoccupied = Math.min(parking_capacity, current_unoccupied + 1);
+
+                // Create new parking availability record (use 0 as vehicle_log_id for guests)
+                const { error: parkingError } = await supabase
+                    .from('parking_availability')
+                    .insert({
+                        vehicle_log_id: 0, // Guests don't have vehicle_log_id
+                        parking_capacity,
+                        slot_occupied: new_occupied,
+                        slot_unoccupied: new_unoccupied
+                    });
+
+                if (parkingError) {
+                    console.error('[Gate] Parking record error:', parkingError);
+                    // Don't throw error - parking is secondary functionality
+                }
             }
 
             return json({ success: true, message: 'Guest exit recorded' });

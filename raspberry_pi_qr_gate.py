@@ -175,6 +175,159 @@ def record_exit(registration_id, logged_status=None, reason=None):
         print(f"❌ Exit recording error: {e}")
         return {"error": "Connection failed"}
 
+# Manual Entry Functions for Visitors/Concessionaires
+def manual_visitor_entry(name, mobile, plate, purpose):
+    """Record manual visitor entry and open entrance gate"""
+    try:
+        headers = {
+            "X-Gate-Key": GATE_API_KEY,
+            "Content-Type": "application/json"
+        }
+        response = requests.post(
+            f"{API_BASE_URL}/gate/manual",
+            json={
+                "type": "in",
+                "name": name,
+                "mobile": mobile,
+                "make_model": "Visitor/Concessionaire",
+                "plate": plate,
+                "purpose": purpose
+            },
+            headers=headers,
+            timeout=5
+        )
+        result = response.json()
+
+        if result.get("success"):
+            print(f"✅ Visitor entry recorded: {name} - {plate}")
+            print(f"🎫 Ticket Number: {result.get('ticket_no')}")
+            open_gate_with_timer()  # Open Motor 1 (entrance gate)
+            return True
+        else:
+            print(f"❌ Failed to record visitor entry: {result.get('error')}")
+            return False
+    except requests.RequestException as e:
+        print(f"❌ Manual entry error: {e}")
+        return False
+
+def lookup_visitor_by_plate(plate):
+    """Lookup visitor by plate number"""
+    try:
+        headers = {
+            "X-Gate-Key": GATE_API_KEY,
+            "Content-Type": "application/json"
+        }
+        response = requests.get(
+            f"{API_BASE_URL}/gate/lookup-plate",
+            params={"plate": plate},
+            headers=headers,
+            timeout=5
+        )
+        return response.json()
+    except requests.RequestException as e:
+        print(f"❌ Plate lookup error: {e}")
+        return {"error": "Connection failed"}
+
+def manual_visitor_exit(plate):
+    """Record manual visitor exit and open exit gate"""
+    try:
+        # First lookup the visitor
+        lookup_result = lookup_visitor_by_plate(plate)
+
+        if not lookup_result.get("found"):
+            print(f"❌ No active visitor found with plate: {plate}")
+            return False
+
+        visitor = lookup_result.get("visitor")
+        print(f"\n👤 Visitor Found:")
+        print(f"   Name: {visitor.get('name')}")
+        print(f"   Mobile: {visitor.get('mobile')}")
+        print(f"   Plate: {visitor.get('plate')}")
+        print(f"   Purpose: {visitor.get('purpose')}")
+        print(f"   Entry Time: {visitor.get('in_time')}")
+        print(f"   Ticket: {visitor.get('ticket_no')}")
+
+        # Record exit
+        headers = {
+            "X-Gate-Key": GATE_API_KEY,
+            "Content-Type": "application/json"
+        }
+        response = requests.post(
+            f"{API_BASE_URL}/gate/manual",
+            json={
+                "type": "out",
+                "ticket_no": visitor.get('ticket_no')
+            },
+            headers=headers,
+            timeout=5
+        )
+        result = response.json()
+
+        if result.get("success"):
+            print(f"✅ Visitor exit recorded: {visitor.get('name')} - {plate}")
+            open_exit_gate_with_refresh()  # Open Motor 2 (exit gate)
+            return True
+        else:
+            print(f"❌ Failed to record visitor exit: {result.get('error')}")
+            return False
+    except requests.RequestException as e:
+        print(f"❌ Manual exit error: {e}")
+        return False
+
+# Manual Entry Interface
+def manual_entry_menu():
+    """Simple text-based menu for manual visitor entry/exit"""
+    while True:
+        print("\n" + "="*50)
+        print("🚗 MANUAL ENTRY MENU")
+        print("="*50)
+        print("1. Visitor/Concessionaire Entry (Motor 1)")
+        print("2. Visitor/Concessionaire Exit (Motor 2)")
+        print("3. Return to QR Scanning")
+        print("="*50)
+
+        choice = input("Select option (1-3): ").strip()
+
+        if choice == '1':
+            print("\n📝 Visitor Entry Form")
+            name = input("Name: ").strip()
+            mobile = input("Mobile (phone number): ").strip()
+            plate = input("Plate Number: ").strip()
+            purpose = input("Purpose: ").strip()
+
+            if name and mobile and plate and purpose:
+                if manual_visitor_entry(name, mobile, plate, purpose):
+                    print("✅ Entry successful! Gate opening...")
+                    time.sleep(2)
+                else:
+                    print("❌ Entry failed. Please try again.")
+            else:
+                print("❌ All fields are required!")
+
+        elif choice == '2':
+            print("\n📝 Visitor Exit Form")
+            plate = input("Plate Number: ").strip()
+
+            if plate:
+                confirm = input("Open exit gate? (y/n): ").strip().lower()
+                if confirm == 'y':
+                    if manual_visitor_exit(plate):
+                        print("✅ Exit successful! Gate opening...")
+                        time.sleep(2)
+                    else:
+                        print("❌ Exit failed. Please try again.")
+                else:
+                    print("❌ Exit cancelled.")
+            else:
+                print("❌ Plate number is required!")
+
+        elif choice == '3':
+            print("🔄 Returning to QR scanning...")
+            break
+
+        else:
+            print("❌ Invalid option. Please select 1-3.")
+
 # Display Functions
 def display_vehicle_info(data):
     """Display vehicle information on screen"""
@@ -220,7 +373,7 @@ def display_vehicle_info(data):
 def scan_qr_codes():
     """Main QR scanning loop"""
     print("🎥 Starting QR scanner...")
-    print("Press 'q' to quit")
+    print("Press 'm' for manual entry, 'q' to quit")
 
     # Start exit gate timer thread
     exit_timer_thread = threading.Thread(target=exit_gate_timer, daemon=True)
@@ -304,9 +457,15 @@ def scan_qr_codes():
 
             cv2.imshow('QR Scanner', frame)
 
-            # Exit on 'q' key
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            # Exit on 'q' key, manual entry on 'm' key
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
                 break
+            elif key == ord('m'):
+                cv2.destroyAllWindows()
+                manual_entry_menu()
+                # Restart camera after manual entry
+                cap = cv2.VideoCapture(0)
 
     finally:
         cap.release()

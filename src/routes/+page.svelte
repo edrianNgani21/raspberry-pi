@@ -18,6 +18,7 @@
     let vehicle = $state('');
     let vehicle_type = $state('');
     let plate = $state('');
+    let color = $state('');
     let idno = $state('');
     let loading = $state(false);
 
@@ -53,7 +54,7 @@
 
     let canProceed = $derived((() => {
         if (section === 1) {
-            if (!fname || !lname || !contact_number || !vehicle || !vehicle_type || !plate || !role || !campus) return false;
+            if (!fname || !lname || !contact_number || !vehicle || !vehicle_type || !plate || !color || !role || !campus) return false;
             if (['student', 'employee'].includes(role) && (!dept || !idno)) return false;
             if (role === 'student' && !year_level) return false;
             return true;
@@ -99,7 +100,7 @@
     ];
 
     async function handleSubmit() {
-        if (!fname || !lname || !contact_number || !vehicle || !vehicle_type || !plate || !role) {
+        if (!fname || !lname || !contact_number || !vehicle || !vehicle_type || !plate || !color || !role) {
             alert('Please fill out all required fields.');
             return;
         }
@@ -117,6 +118,7 @@
             formData.append('vehicle_make', vehicle);
             formData.append('vehicle_type', vehicle_type);
             formData.append('vehicle_plate', plate);
+            formData.append('vehicle_color', color);
             formData.append('is_owner', owner);
             formData.append('campus', campus);
             if (year_level) formData.append('year_level', year_level);
@@ -227,6 +229,11 @@
       <div class="field-group">
         <label class="field-label" for="plate">Plate number</label>
         <input id="plate" type="text" placeholder="ABC-1234" bind:value={plate} />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="color">Color</label>
+        <input id="color" type="text" placeholder="e.g., Red, Blue, Black" bind:value={color} />
       </div>
 
       <div class="field-group">

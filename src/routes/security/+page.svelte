@@ -285,6 +285,7 @@
           'dept. email': app.department_email || '-',
           vehicle: app.vehicle_information?.brand || '-',
           'vehicle type': app.vehicle_information?.type || '-',
+          color: app.vehicle_information?.color || '-',
           plate: app.vehicle_information?.plate_number || '-',
           owner: app.is_owner ? 'Yes' : 'No',
           status: app.status,
