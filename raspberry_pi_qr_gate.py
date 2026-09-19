@@ -175,9 +175,9 @@ def record_exit(registration_id, logged_status=None, reason=None):
         print(f"❌ Exit recording error: {e}")
         return {"error": "Connection failed"}
 
-# Manual Entry Functions for Visitors/Concessionaires
-def manual_visitor_entry(name, mobile, plate, purpose):
-    """Record manual visitor entry and open entrance gate"""
+# Manual Entry Functions for Guests
+def manual_visitor_entry(name, plate, id_number, purpose):
+    """Record manual guest entry and open entrance gate"""
     try:
         headers = {
             "X-Gate-Key": GATE_API_KEY,
@@ -188,9 +188,10 @@ def manual_visitor_entry(name, mobile, plate, purpose):
             json={
                 "type": "in",
                 "name": name,
-                "mobile": mobile,
+                "mobile": None,  # Mobile is optional now
                 "make_model": "Visitor/Concessionaire",
                 "plate": plate,
+                "id_number": id_number,
                 "purpose": purpose
             },
             headers=headers,
@@ -210,40 +211,47 @@ def manual_visitor_entry(name, mobile, plate, purpose):
         print(f"❌ Manual entry error: {e}")
         return False
 
-def lookup_visitor_by_plate(plate):
-    """Lookup visitor by plate number"""
+def lookup_visitor_by_plate(plate=None, name=None):
+    """Lookup guest by plate number or name"""
     try:
         headers = {
             "X-Gate-Key": GATE_API_KEY,
             "Content-Type": "application/json"
         }
+        params = {}
+        if plate:
+            params["plate"] = plate
+        if name:
+            params["name"] = name
         response = requests.get(
             f"{API_BASE_URL}/gate/lookup-plate",
-            params={"plate": plate},
+            params=params,
             headers=headers,
             timeout=5
         )
         return response.json()
     except requests.RequestException as e:
-        print(f"❌ Plate lookup error: {e}")
+        print(f"❌ Guest lookup error: {e}")
         return {"error": "Connection failed"}
 
-def manual_visitor_exit(plate):
-    """Record manual visitor exit and open exit gate"""
+def manual_visitor_exit(search_term):
+    """Record manual guest exit and open exit gate by plate or name"""
     try:
-        # First lookup the visitor
-        lookup_result = lookup_visitor_by_plate(plate)
+        # First try to lookup as plate number
+        lookup_result = lookup_visitor_by_plate(plate=search_term)
+
+        # If plate lookup fails, try as name
+        if not lookup_result.get("found"):
+            lookup_result = lookup_visitor_by_plate(name=search_term)
 
         if not lookup_result.get("found"):
-            print(f"❌ No active visitor found with plate: {plate}")
+            print(f"❌ No active guest found with: {search_term}")
             return False
 
         visitor = lookup_result.get("visitor")
-        print(f"\n👤 Visitor Found:")
+        print(f"\n👤 Guest Found:")
         print(f"   Name: {visitor.get('name')}")
-        print(f"   Mobile: {visitor.get('mobile')}")
         print(f"   Plate: {visitor.get('plate')}")
-        print(f"   Purpose: {visitor.get('purpose')}")
         print(f"   Entry Time: {visitor.get('in_time')}")
         print(f"   Ticket: {visitor.get('ticket_no')}")
 
@@ -264,11 +272,11 @@ def manual_visitor_exit(plate):
         result = response.json()
 
         if result.get("success"):
-            print(f"✅ Visitor exit recorded: {visitor.get('name')} - {plate}")
+            print(f"✅ Guest exit recorded: {visitor.get('name')} - {visitor.get('plate')}")
             open_exit_gate_with_refresh()  # Open Motor 2 (exit gate)
             return True
         else:
-            print(f"❌ Failed to record visitor exit: {result.get('error')}")
+            print(f"❌ Failed to record guest exit: {result.get('error')}")
             return False
     except requests.RequestException as e:
         print(f"❌ Manual exit error: {e}")
@@ -281,8 +289,8 @@ def manual_entry_menu():
         print("\n" + "="*50)
         print("🚗 MANUAL ENTRY MENU")
         print("="*50)
-        print("1. Visitor/Concessionaire Entry (Motor 1)")
-        print("2. Visitor/Concessionaire Exit (Motor 2)")
+        print("1. Guest Entry (Motor 1) - Name, Plate, ID#, Purpose")
+        print("2. Guest Exit (Motor 2) - Search by Plate or Name")
         print("3. Return to QR Scanning")
         print("="*50)
 
@@ -291,12 +299,12 @@ def manual_entry_menu():
         if choice == '1':
             print("\n📝 Visitor Entry Form")
             name = input("Name: ").strip()
-            mobile = input("Mobile (phone number): ").strip()
             plate = input("Plate Number: ").strip()
-            purpose = input("Purpose: ").strip()
+            id_number = input("ID Number (Driver's License): ").strip()
+            purpose = input("Purpose (Reason): ").strip()
 
-            if name and mobile and plate and purpose:
-                if manual_visitor_entry(name, mobile, plate, purpose):
+            if name and plate and id_number and purpose:
+                if manual_visitor_entry(name, plate, id_number, purpose):
                     print("✅ Entry successful! Gate opening...")
                     time.sleep(2)
                 else:
@@ -306,12 +314,12 @@ def manual_entry_menu():
 
         elif choice == '2':
             print("\n📝 Visitor Exit Form")
-            plate = input("Plate Number: ").strip()
+            search_term = input("Search by Plate Number or Name: ").strip()
 
-            if plate:
+            if search_term:
                 confirm = input("Open exit gate? (y/n): ").strip().lower()
                 if confirm == 'y':
-                    if manual_visitor_exit(plate):
+                    if manual_visitor_exit(search_term):
                         print("✅ Exit successful! Gate opening...")
                         time.sleep(2)
                     else:
@@ -319,7 +327,7 @@ def manual_entry_menu():
                 else:
                     print("❌ Exit cancelled.")
             else:
-                print("❌ Plate number is required!")
+                print("❌ Search term is required!")
 
         elif choice == '3':
             print("🔄 Returning to QR scanning...")

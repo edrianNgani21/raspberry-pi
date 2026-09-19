@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     try {
-        const { type, ticket_no, name, mobile, make_model, plate, purpose, reason, pic_base64, logged_status } = await request.json();
+        const { type, ticket_no, name, mobile, make_model, plate, id_number, purpose, reason, pic_base64, logged_status } = await request.json();
 
         if (!type || (type !== 'in' && type !== 'out')) {
             return json({ error: 'Invalid type (must be in or out)' }, { status: 400 });
@@ -78,6 +78,7 @@ export const POST: RequestHandler = async ({ request }) => {
                     mobile: mobile || null,
                     make_model,
                     plate,
+                    id_number: id_number || null,
                     purpose: purpose || reason || null,
                     reason: reason || null,
                     in: new Date().toISOString(),

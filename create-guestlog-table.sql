@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS guestlog (
     mobile VARCHAR(20),
     make_model VARCHAR(100),
     plate VARCHAR(20),
+    id_number VARCHAR(50),
     purpose VARCHAR(200),
     reason TEXT,
     in TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS guestlog (
 -- Add index on ticket_no for faster lookups
 CREATE INDEX IF NOT EXISTS idx_guestlog_ticket_no ON guestlog(ticket_no);
 CREATE INDEX IF NOT EXISTS idx_guestlog_plate ON guestlog(plate);
+CREATE INDEX IF NOT EXISTS idx_guestlog_id_number ON guestlog(id_number);
 CREATE INDEX IF NOT EXISTS idx_guestlog_in_out ON guestlog(in, out);
 
 -- ============================================

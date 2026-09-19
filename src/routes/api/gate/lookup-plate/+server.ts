@@ -13,45 +13,72 @@ export const GET: RequestHandler = async ({ request, url }) => {
     }
 
     const plate = url.searchParams.get('plate');
-    if (!plate) {
-        return json({ error: 'Missing plate parameter' }, { status: 400 });
+    const name = url.searchParams.get('name');
+
+    if (!plate && !name) {
+        return json({ error: 'Missing plate or name parameter' }, { status: 400 });
     }
 
     try {
-        // Lookup visitor by plate number in guestlog table
-        const { data: guestData } = await supabase
-            .from('guestlog')
-            .select('*')
-            .eq('plate', plate)
-            .is('out', null)  // Only find visitors currently inside
-            .order('in', { ascending: false })
-            .limit(1)
-            .single();
+        let data;
 
-        if (guestData) {
+        // Search by plate if provided
+        if (plate) {
+            const { data: plateData, error: plateError } = await supabase
+                .from('guestlog')
+                .select('*')
+                .eq('plate', plate)
+                .is('out', null)  // Only find guests currently inside
+                .order('in', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (!plateError && plateData) {
+                data = plateData;
+            }
+        }
+
+        // Search by name if provided and plate search didn't return results
+        if (!data && name) {
+            const { data: nameData, error: nameError } = await supabase
+                .from('guestlog')
+                .select('*')
+                .ilike('name', `%${name}%`)  // Case-insensitive partial match
+                .is('out', null)  // Only find guests currently inside
+                .order('in', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (!nameError && nameData) {
+                data = nameData;
+            }
+        }
+
+        if (data) {
             return json({
                 found: true,
                 visitor: {
-                    guest_id: guestData.guest_id,
-                    ticket_no: guestData.ticket_no,
-                    name: guestData.name,
-                    mobile: guestData.mobile,
-                    make_model: guestData.make_model,
-                    plate: guestData.plate,
-                    purpose: guestData.purpose,
-                    reason: guestData.reason,
-                    in_time: guestData.in,
-                    logged_status: guestData.logged_status
+                    guest_id: data.guest_id,
+                    ticket_no: data.ticket_no,
+                    name: data.name,
+                    mobile: data.mobile,
+                    make_model: data.make_model,
+                    plate: data.plate,
+                    id_number: data.id_number,
+                    purpose: data.purpose,
+                    reason: data.reason,
+                    in_time: data.in,
+                    logged_status: data.logged_status
                 }
             });
         } else {
             return json({
                 found: false,
-                message: 'No active visitor found with this plate number'
+                message: 'No active guest found with the provided information'
             });
         }
     } catch (error) {
-        console.error('[Gate] Plate lookup error:', error);
+        console.error('[Gate] Lookup error:', error);
         return json({ error: 'Internal Server Error' }, { status: 500 });
     }
 };
