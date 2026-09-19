@@ -15,7 +15,7 @@ import json
 
 # Configuration
 API_BASE_URL = "http://192.168.1.52:5173/api"  # Your server network IP
-GATE_API_KEY = "gateqr-secret-key-2024"  # Match your .env
+GATE_API_KEY = "df8ccf8d904f93591a8cb1dfe0211f653fbf785e7b87687e77deb41d907c6fef"  # Match your .env
 SERVO_PIN = 18  # GPIO pin for entrance motor (Motor 1)
 SERVO_PIN_2 = 19  # GPIO pin for exit motor (Motor 2)
 GATE_OPEN_TIME = 10  # seconds to keep entrance gate open
