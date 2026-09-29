@@ -1,13 +1,13 @@
 import { type Handle, redirect } from '@sveltejs/kit';
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get('gateqr_session');
 
 	if (token) {
 		try {
-			const decoded = jwt.verify(token, JWT_SECRET) as {
+			const decoded = jwt.verify(token, env.JWT_SECRET as string) as {
 				email: string;
 				role: string;
 				department_id: number | null;

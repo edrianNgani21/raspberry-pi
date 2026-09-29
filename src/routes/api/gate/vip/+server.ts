@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/server/supabase';
-import { GATE_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 function checkAuth(request: Request): boolean {
-    return request.headers.get('X-Gate-Key') === GATE_API_KEY;
+    return request.headers.get('X-Gate-Key') === env.GATE_API_KEY;
 }
 
 export const POST: RequestHandler = async ({ request }) => {

@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/server/supabase';
 import { sendEmail } from '$lib/server/email';
-import { SECURITY_EMAIL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user) {
@@ -87,7 +87,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // Notify Security
         await sendEmail(
-            SECURITY_EMAIL,
+            env.SECURITY_EMAIL as string,
             'New Complaint Received',
             `A new complaint has been submitted by ${locals.user.email}.\n\nMessage: ${message.trim()}`,
             `<p>A new complaint has been submitted by <strong>${locals.user.email}</strong>.</p>

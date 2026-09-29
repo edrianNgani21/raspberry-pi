@@ -1,13 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/server/supabase';
-import { GATE_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 // Optionally check auth if this is meant for the gate, 
 // but we might want this route to be accessible via session for the web dashboard too.
 export const GET: RequestHandler = async ({ request, url, locals }) => {
     // Allow either X-Gate-Key (from RPi) or logged-in OSA user (from Web)
-    const isGate = request.headers.get('X-Gate-Key') === GATE_API_KEY;
+    const isGate = request.headers.get('X-Gate-Key') === env.GATE_API_KEY;
     const isOsa = locals.user && (locals.user.role === 'osa' || locals.user.role === 'security');
     
     if (!isGate && !isOsa) {

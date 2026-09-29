@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/server/supabase';
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
     try {
@@ -108,7 +108,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
                 department_id,
                 user_id: userId
             },
-            JWT_SECRET,
+            env.JWT_SECRET as string,
             { expiresIn: '7d' } // 7 days
         );
 
