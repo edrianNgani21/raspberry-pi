@@ -22,7 +22,7 @@ const transporter = nodemailer.createTransport({
 export async function sendEmail(to: string, subject: string, text: string, html?: string, from?: string) {
     try {
         await transporter.sendMail({
-            from: from || '"GateQR" <noreply@gateqr.liceo.edu.ph>',
+            from: from || `"GateQR" <${smtpUser}>`,
             to,
             subject,
             text,
