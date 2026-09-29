@@ -611,6 +611,12 @@
     gap: 1.25rem;
   }
 
+  @media (max-width: 640px) {
+    .field-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .field-group {
     display: flex;
     flex-direction: column;
@@ -722,6 +728,18 @@
     display: grid;
     grid-template-columns: repeat(var(--cols, 3), 1fr);
     gap: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .upload-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .upload-grid {
+      grid-template-columns: 1fr !important;
+    }
   }
 
   .upload-tile {
@@ -910,6 +928,21 @@
     display: flex;
     gap: 1rem;
     margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 480px) {
+    .nav-btns {
+      flex-direction: column;
+    }
+
+    .nav-btn {
+      width: 100%;
+    }
+
+    .btn-back {
+      flex: 1;
+    }
   }
 
   .nav-btn {

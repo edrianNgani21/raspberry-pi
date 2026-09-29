@@ -362,4 +362,29 @@
       font-size: 1.5rem;
     }
   }
+
+  @media (max-width: 480px) {
+    .login-page {
+      padding: var(--space-md);
+    }
+
+    .login-card {
+      padding: var(--space-lg);
+      border-radius: var(--radius-xl);
+    }
+
+    .login-brand {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .login-logo {
+      width: 52px;
+      height: 52px;
+    }
+
+    .login-title {
+      font-size: 1.375rem;
+    }
+  }
 </style>

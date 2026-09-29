@@ -122,14 +122,23 @@
   }
   .header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
   }
   .title { font-size: 1.25rem; font-weight: 700; color: var(--text); margin: 0; }
   .search-box {
     padding: 0.5rem 1rem; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-    width: 300px; font-size: 0.875rem; outline: none; background: var(--background);
+    width: 300px; max-width: 100%; font-size: 0.875rem; outline: none; background: var(--background);
   }
   .search-box:focus { border-color: var(--maroon); }
+  @media (max-width: 640px) {
+    .header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-box {
+      width: 100%;
+    }
+  }
   .table-wrap { overflow-x: auto; }
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
   .data-table th, .data-table td {

@@ -275,6 +275,7 @@
     user-select: none;
     min-height: 54px;
     transition: background 0.15s;
+    flex-wrap: wrap;
   }
   .card-summary:hover {
     background: var(--maroon-muted, rgba(107,26,42,0.04));
@@ -282,6 +283,19 @@
   .app-card.expanded .card-summary {
     border-bottom: 1.5px solid var(--border-light, #f0e8ea);
     background: var(--maroon-muted, rgba(107,26,42,0.04));
+  }
+
+  @media (max-width: 480px) {
+    .card-summary {
+      flex-wrap: wrap;
+    }
+    .summary-right {
+      width: 100%;
+      justify-content: flex-start;
+      border-top: 1px solid var(--border-light, #f0e8ea);
+      padding-top: 0.4rem;
+      margin-top: -0.2rem;
+    }
   }
 
   /* ─── Checkbox ───────────────────────────────────────────────────────── */

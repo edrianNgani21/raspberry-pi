@@ -213,6 +213,18 @@
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.875rem;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 480px) {
+    .welcome-bar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .wb-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
   }
 
   .wb-user {

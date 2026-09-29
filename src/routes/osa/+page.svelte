@@ -761,6 +761,7 @@
     align-items: flex-start;
     gap: 1rem;
     margin-bottom: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .header-content h1 {
@@ -779,6 +780,7 @@
   .header-stats {
     display: flex;
     gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .stat-badge {
@@ -918,6 +920,25 @@
 
   .applications-list.with-schedule-panel {
     max-width: calc(100% - 420px);
+  }
+
+  @media (max-width: 1024px) {
+    .content-layout {
+      flex-direction: column;
+    }
+    .applications-list {
+      max-width: 100%;
+    }
+    .applications-list.with-schedule-panel {
+      max-width: 100%;
+    }
+    .selected-apps-table {
+      width: 100%;
+    }
+    .schedule-calendar-panel {
+      width: 100%;
+      max-height: none;
+    }
   }
 
   .selected-apps-table {

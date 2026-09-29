@@ -600,6 +600,13 @@
     }
   }
 
+  @media (max-width: 640px) {
+    .app-shell {
+      padding: var(--space-md);
+      gap: var(--space-md);
+    }
+  }
+
   @media (max-width: 768px) {
     .sidebar-brand {
       padding: var(--space-sm);
@@ -635,7 +642,18 @@
     }
 
     .notification-dropdown {
-      width: 320px;
+      width: min(340px, calc(100vw - 2rem));
+      right: 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .notification-dropdown {
+      width: calc(100vw - 2rem);
+      right: 50%;
+      transform: translateX(50%);
+      position: fixed;
+      top: auto;
     }
   }
 

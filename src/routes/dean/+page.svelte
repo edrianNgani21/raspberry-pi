@@ -265,6 +265,7 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
+    flex-wrap: wrap;
   }
 
   .page-header h1 {
@@ -326,7 +327,7 @@
   .search-wrap {
     position: relative;
     flex: 1;
-    min-width: 250px;
+    min-width: 200px;
     display: flex;
     align-items: center;
   }
@@ -375,6 +376,23 @@
     gap: 0.75rem;
     align-items: center;
     flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 640px) {
+    .controls-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-wrap {
+      min-width: 0;
+    }
+    .filters {
+      flex-wrap: wrap;
+    }
+    .filter-select {
+      flex: 1;
+    }
   }
 
   .filter-select {

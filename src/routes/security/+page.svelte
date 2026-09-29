@@ -785,6 +785,12 @@
     margin-bottom: 1rem;
   }
 
+  @media (max-width: 480px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
 
   .stat-card {
     background: var(--surface);
@@ -946,7 +952,7 @@
   }
 
   .capacity-stats {
-    display: flex; gap: 2rem; padding-top: 0.75rem; border-top: 1px solid var(--border);
+    display: flex; gap: 2rem; padding-top: 0.75rem; border-top: 1px solid var(--border); flex-wrap: wrap;
   }
 
   .parking-info {
@@ -954,6 +960,7 @@
     gap: 2rem;
     align-items: center;
     margin-top: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .parking-stat {
@@ -1138,6 +1145,24 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     background: var(--background);
+  }
+
+  @media (max-width: 640px) {
+    .controls-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-wrap {
+      min-width: 0;
+    }
+    .filters {
+      flex-wrap: wrap;
+    }
+    .filter-select,
+    .ctrl-input {
+      flex: 1;
+      min-width: 0;
+    }
   }
 
   .search-wrap {
