@@ -20,6 +20,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const last_name = formData.get('last_name') as string;
         const vehicle_make = formData.get('vehicle_make') as string;
         const vehicle_plate = formData.get('vehicle_plate') as string;
+        const vehicle_color = formData.get('vehicle_color') as string || 'Not Specified';
         const vehicle_type = (formData.get('vehicle_type') as string) || '4-wheeler';
         const is_owner = formData.get('is_owner') as string;
         const contact_number = formData.get('contact_number') as string;
@@ -45,10 +46,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const doc_letter = await saveFile('doc_letter');
         const doc_qr = null;
 
-        // Extract vehicle color and brand from vehicle_make
-        const vehicleParts = vehicle_make.split(' ');
-        const vehicle_brand = vehicleParts[0] || vehicle_make;
-        const vehicle_color = vehicleParts.slice(1).join(' ') || 'Not Specified';
+        // Extract vehicle brand from vehicle_make (use vehicle_color from form)
+        const vehicle_brand = vehicle_make;
 
         // 1. Ensure user exists in user table
         let { data: users, error: userError } = await supabase

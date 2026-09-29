@@ -20,55 +20,82 @@ export const GET: RequestHandler = async ({ request, url }) => {
     try {
         let reg = null;
 
-        const regIdMatch = qr.match(/^REG-(\d+)$/i);
-        if (regIdMatch) {
-            const autoId = parseInt(regIdMatch[1]);
-            const { data: rows } = await supabase
-                .from('registration')
-                .select(`
-                    *,
-                    user:user_id(email),
-                    department:department_id(department, email),
-                    vehicle_information:vehicle_information_id(
-                        plate_number,
-                        brand,
-                        color,
-                        type
-                    )
-                `)
-                .eq('registration_id', autoId)
-                .single();
+        // First try to lookup by unique alphanumeric code (new format)
+        const { data: uniqueCodeRows } = await supabase
+            .from('registration')
+            .select(`
+                *,
+                user:user_id(email),
+                department:department_id(department, email),
+                vehicle_information:vehicle_information_id(
+                    plate_number,
+                    brand,
+                    color,
+                    type
+                )
+            `)
+            .eq('qr_unique_code', qr)
+            .maybeSingle();
 
-            if (rows) {
-                reg = {
-                    ...rows,
-                    user_email: rows.user?.email,
-                    department_name: rows.department?.department
-                };
-            }
+        if (uniqueCodeRows) {
+            reg = {
+                ...uniqueCodeRows,
+                user_email: uniqueCodeRows.user?.email,
+                department_name: uniqueCodeRows.department?.department
+            };
         } else {
-            const { data: rows } = await supabase
-                .from('registration')
-                .select(`
-                    *,
-                    user:user_id(email),
-                    department:department_id(department, email),
-                    vehicle_information:vehicle_information_id(
-                        plate_number,
-                        brand,
-                        color,
-                        type
-                    )
-                `)
-                .eq('registration_id', qr)
-                .single();
+            // Fallback to old REG-{number} format for backward compatibility
+            const regIdMatch = qr.match(/^REG-(\d+)$/i);
+            if (regIdMatch) {
+                const autoId = parseInt(regIdMatch[1]);
+                const { data: rows } = await supabase
+                    .from('registration')
+                    .select(`
+                        *,
+                        user:user_id(email),
+                        department:department_id(department, email),
+                        vehicle_information:vehicle_information_id(
+                            plate_number,
+                            brand,
+                            color,
+                            type
+                        )
+                    `)
+                    .eq('registration_id', autoId)
+                    .single();
 
-            if (rows) {
-                reg = {
-                    ...rows,
-                    user_email: rows.user?.email,
-                    department_name: rows.department?.department
-                };
+                if (rows) {
+                    reg = {
+                        ...rows,
+                        user_email: rows.user?.email,
+                        department_name: rows.department?.department
+                    };
+                }
+            } else {
+                // Direct registration_id lookup
+                const { data: rows } = await supabase
+                    .from('registration')
+                    .select(`
+                        *,
+                        user:user_id(email),
+                        department:department_id(department, email),
+                        vehicle_information:vehicle_information_id(
+                            plate_number,
+                            brand,
+                            color,
+                            type
+                        )
+                    `)
+                    .eq('registration_id', qr)
+                    .single();
+
+                if (rows) {
+                    reg = {
+                        ...rows,
+                        user_email: rows.user?.email,
+                        department_name: rows.department?.department
+                    };
+                }
             }
         }
 

@@ -2,7 +2,36 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { supabase } from '$lib/server/supabase';
 
-export const POST: RequestHandler = async ({ request }) => {
+async function createNotification(
+    userId: number,
+    notificationType: string,
+    message: string,
+    actorId?: number,
+    actionType?: string,
+    targetEntityType?: string,
+    targetEntityId?: number,
+    referenceId?: number,
+    metadata?: any
+) {
+    try {
+        await supabase.from('notifications').insert({
+            user_id: userId,
+            notification_type: notificationType,
+            message: message,
+            actor_id: actorId || null,
+            action_type: actionType || null,
+            target_entity_type: targetEntityType || null,
+            target_entity_id: targetEntityId || null,
+            reference_id: referenceId || null,
+            metadata: metadata || null,
+            is_read: false
+        });
+    } catch (error) {
+        console.error('Failed to create notification:', error);
+    }
+}
+
+export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         const { email, user_type, identification } = await request.json();
 
@@ -35,6 +64,22 @@ export const POST: RequestHandler = async ({ request }) => {
 
         if (createError) throw createError;
 
+        // Create notification for the new admin
+        if (newUser) {
+            const actorId = locals.user?.user_id;
+            await createNotification(
+                newUser.user_id,
+                'admin_created',
+                'Admin added successfully!',
+                actorId,
+                'create_admin',
+                'user',
+                newUser.user_id,
+                newUser.user_id,
+                { user_type }
+            );
+        }
+
         return json({ 
             message: 'Admin created successfully',
             user: newUser
@@ -62,7 +107,7 @@ export const GET: RequestHandler = async () => {
     }
 };
 
-export const PATCH: RequestHandler = async ({ request }) => {
+export const PATCH: RequestHandler = async ({ request, locals }) => {
     try {
         const { user_id, is_active } = await request.json();
 
@@ -79,6 +124,22 @@ export const PATCH: RequestHandler = async ({ request }) => {
 
         if (error) throw error;
 
+        // Create notification for the admin whose status was changed
+        if (updatedUser) {
+            const actorId = locals.user?.user_id;
+            await createNotification(
+                updatedUser.user_id,
+                is_active ? 'admin_activated' : 'admin_deactivated',
+                is_active ? 'Admin activated successfully!' : 'Admin deactivated successfully!',
+                actorId,
+                is_active ? 'activate_admin' : 'deactivate_admin',
+                'user',
+                updatedUser.user_id,
+                updatedUser.user_id,
+                { user_type: updatedUser.user_type }
+            );
+        }
+
         return json({
             message: is_active ? 'Account activated successfully' : 'Account deactivated successfully',
             user: updatedUser
@@ -89,7 +150,7 @@ export const PATCH: RequestHandler = async ({ request }) => {
     }
 };
 
-export const DELETE: RequestHandler = async ({ request }) => {
+export const DELETE: RequestHandler = async ({ request, locals }) => {
     try {
         const { user_id } = await request.json();
 
@@ -97,12 +158,35 @@ export const DELETE: RequestHandler = async ({ request }) => {
             return json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        // Get user info before deletion for notification
+        const { data: userToDelete } = await supabase
+            .from('user')
+            .select('user_id, email, user_type')
+            .eq('user_id', user_id)
+            .single();
+
         const { error } = await supabase
             .from('user')
             .delete()
             .eq('user_id', user_id);
 
         if (error) throw error;
+
+        // Create notification for the deleted admin (if we had their info)
+        if (userToDelete) {
+            const actorId = locals.user?.user_id;
+            await createNotification(
+                userToDelete.user_id,
+                'admin_deleted',
+                'Admin deleted successfully!',
+                actorId,
+                'delete_admin',
+                'user',
+                userToDelete.user_id,
+                userToDelete.user_id,
+                { user_type: userToDelete.user_type }
+            );
+        }
 
         return json({ message: 'Admin deleted successfully' });
     } catch (error) {

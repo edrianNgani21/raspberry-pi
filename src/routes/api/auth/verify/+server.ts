@@ -13,6 +13,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         }
 
         // Verify OTP from Supabase with optimized query
+        console.log('[OTP] Verifying OTP for email:', email, 'code:', otp);
         const { data: otpData, error: otpError } = await supabase
             .from('otp_codes')
             .select('*')
@@ -23,7 +24,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
             .limit(1)
             .maybeSingle();
 
+        console.log('[OTP] Query result - Error:', otpError, 'Data:', otpData);
+
         if (otpError || !otpData) {
+            console.error('[OTP] Verification failed - OTP not found or expired');
             return json({ error: 'Invalid or expired OTP' }, { status: 401 });
         }
 

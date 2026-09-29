@@ -4,7 +4,12 @@
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
-    
+
+    async function handleLogout() {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login';
+    }
+
     // Convert to any[] to avoid TypeScript strict property checks
     let app = $derived((data.application as any) || null);
     let skipDean = $derived(app ? ['visitor', 'concessionaire'].includes(app.role) : false);
@@ -50,13 +55,19 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>{data.userEmail}</span>
     </div>
-    <a href="/complaints" class="wb-action" class:wb-action-alert={(data.scheduledCount ?? 0) > 0}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-      My Complaints
-      {#if (data.scheduledCount ?? 0) > 0}
-        <span class="wb-badge"></span>
-      {/if}
-    </a>
+    <div class="wb-actions">
+      <a href="/complaints" class="wb-action" class:wb-action-alert={(data.scheduledCount ?? 0) > 0}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        My Complaints
+        {#if (data.scheduledCount ?? 0) > 0}
+          <span class="wb-badge"></span>
+        {/if}
+      </a>
+      <button class="wb-action wb-logout" onclick={handleLogout}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </button>
+    </div>
   </div>
 
   {#if app}
@@ -140,7 +151,8 @@
       </div>
     {/if}
 
-    <ApplicationCard data={{
+    <ApplicationCard 
+      data={{
       id: app.id || '-',
       name: `${app.first_name} ${app.last_name}`,
       role: app.role,
@@ -150,6 +162,7 @@
       campus: app.campus || '-',
       'year level': app.role === 'student' ? (app.year_level || '-') : undefined,
       vehicle: app.vehicle_make,
+      color: app.vehicle_color,
       plate: app.vehicle_plate,
       owner: app.is_owner ? 'Yes' : 'No',
       status: app.status,
@@ -160,6 +173,8 @@
       exp: app.expires_at,
       dlv: app.osa_dist_at,
       rejection_reason: app.invalid_reason || null,
+      qr_code: app.qr_code,
+      qr_unique_code: app.qr_unique_code,
       documents: {
         id: app.doc_id,
         enrollment: app.doc_load,
@@ -168,7 +183,10 @@
         license: app.doc_license,
         letter: app.doc_letter
       }
-    }}>
+    }}
+    showQR={app.qr_code != null}
+    tab="status"
+    showDocs={false}>
     </ApplicationCard>
   {:else}
     <div class="no-app">
@@ -205,6 +223,12 @@
 
   .wb-user svg { color: var(--maroon); flex-shrink: 0; }
 
+  .wb-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   .wb-action {
     position: relative;
     display: flex;
@@ -219,8 +243,18 @@
     font-size: 0.75rem;
     transition: background 0.15s, color 0.15s, box-shadow 0.15s;
     box-shadow: 0 2px 8px rgba(107,26,42,0.25);
+    border: none;
+    cursor: pointer;
   }
-  
+
+  .wb-logout {
+    background: #6b1a2a;
+  }
+
+  .wb-logout:hover {
+    background: #5a1624;
+  }
+
   .wb-action:hover {
     background: #551320;
     box-shadow: 0 4px 12px rgba(107,26,42,0.35);

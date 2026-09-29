@@ -19,10 +19,10 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-export async function sendEmail(to: string, subject: string, text: string, html?: string) {
+export async function sendEmail(to: string, subject: string, text: string, html?: string, from?: string) {
     try {
         await transporter.sendMail({
-            from: '"GateQR" <noreply@gateqr.liceo.edu.ph>',
+            from: from || '"GateQR" <noreply@gateqr.liceo.edu.ph>',
             to,
             subject,
             text,

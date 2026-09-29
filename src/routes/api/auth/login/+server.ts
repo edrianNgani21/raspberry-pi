@@ -47,23 +47,34 @@ export const POST: RequestHandler = async ({ request }) => {
         }
 
         // Clean up old OTPs for this email (faster than waiting for expiration)
-        await supabase
+        const { error: cleanupError } = await supabase
             .from('otp_codes')
             .delete()
             .lt('expires_at', new Date().toISOString())
             .eq('email', email);
+        
+        if (cleanupError) {
+            console.error('[OTP] Cleanup error:', cleanupError);
+        }
 
         // Store OTP in Supabase database
-        const { error: otpError } = await supabase
+        console.log('[OTP] Attempting to store OTP for user:', userId, 'email:', email);
+        const { error: otpError, data: otpData } = await supabase
             .from('otp_codes')
             .insert({
                 user_id: userId,
                 email,
                 otp,
                 expires_at: expiresAt.toISOString()
-            });
+            })
+            .select();
 
-        if (otpError) throw otpError;
+        if (otpError) {
+            console.error('[OTP] Database insertion error:', otpError);
+            throw otpError;
+        }
+        
+        console.log('[OTP] Successfully stored OTP in database:', otpData);
 
         // Send email (this is the main bottleneck, but we can't skip it)
         // Fire and forget - don't wait for email completion for response

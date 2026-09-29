@@ -3,6 +3,35 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/server/supabase';
 import { sendEmail } from '$lib/server/email';
 
+async function createNotification(
+    userId: number,
+    notificationType: string,
+    message: string,
+    actorId?: number,
+    actionType?: string,
+    targetEntityType?: string,
+    targetEntityId?: number,
+    referenceId?: number,
+    metadata?: any
+) {
+    try {
+        await supabaseAdmin.from('notifications').insert({
+            user_id: userId,
+            notification_type: notificationType,
+            message: message,
+            actor_id: actorId || null,
+            action_type: actionType || null,
+            target_entity_type: targetEntityType || null,
+            target_entity_id: targetEntityId || null,
+            reference_id: referenceId || null,
+            metadata: metadata || null,
+            is_read: false
+        });
+    } catch (error) {
+        console.error('Failed to create notification:', error);
+    }
+}
+
 export async function POST({ request, locals }: RequestEvent) {
     if (!locals.user || locals.user.role !== 'osa') {
         return json({ error: 'Unauthorized' }, { status: 403 });
@@ -58,8 +87,8 @@ export async function POST({ request, locals }: RequestEvent) {
             // Get user email for notification
             const { data: userData, error: userError } = await supabaseAdmin
                 .from('user')
-                .select('email')
-                .eq('User_ID', changeRequest.user_id)
+                .select('email, user_id')
+                .eq('user_id', changeRequest.user_id)
                 .single();
 
             if (!userError && userData) {
@@ -72,6 +101,20 @@ export async function POST({ request, locals }: RequestEvent) {
                     <p><strong>New Vehicle:</strong> ${new_vehicle_make} (${new_vehicle_plate})</p>
                     <p><strong>Type:</strong> ${new_vehicle_type}</p>
                     <p>Your vehicle information has been successfully updated.</p>`
+                );
+
+                // Create notification for the user
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    userData.user_id,
+                    'vehicle_change_approved',
+                    'Vehicle change approved successfully!',
+                    actorId,
+                    'approve_vehicle_change',
+                    'change_vehicle_request',
+                    request_id,
+                    request_id,
+                    { new_vehicle_make, new_vehicle_plate, new_vehicle_type }
                 );
             }
 
@@ -92,8 +135,8 @@ export async function POST({ request, locals }: RequestEvent) {
             // Get user email for notification
             const { data: userData, error: userError } = await supabaseAdmin
                 .from('user')
-                .select('email')
-                .eq('User_ID', changeRequest.user_id)
+                .select('email, user_id')
+                .eq('user_id', changeRequest.user_id)
                 .single();
 
             if (!userError && userData) {
@@ -104,6 +147,19 @@ export async function POST({ request, locals }: RequestEvent) {
                     `<h3>Vehicle Change Request Rejected</h3>
                     <p>Your vehicle change request has been rejected.</p>
                     <p>Please contact the Office of Student Affairs (OSA) for more information.</p>`
+                );
+
+                // Create notification for the user
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    userData.user_id,
+                    'vehicle_change_rejected',
+                    'Vehicle change rejected successfully!',
+                    actorId,
+                    'reject_vehicle_change',
+                    'change_vehicle_request',
+                    request_id,
+                    request_id
                 );
             }
 

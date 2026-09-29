@@ -75,7 +75,8 @@ export const load: PageServerLoad = async ({ locals }) => {
             doc_license: applications.vehicle_information?.drivers_license || null,
             doc_letter: applications.vehicle_information?.authorization_letter || null,
             // Map vehicle details
-            vehicle_make: applications.vehicle_information ? `${applications.vehicle_information.brand} ${applications.vehicle_information.color}` : 'Unknown',
+            vehicle_make: applications.vehicle_information?.brand || 'Unknown',
+            vehicle_color: applications.vehicle_information?.color || '-',
             vehicle_plate: applications.vehicle_information?.plate_number || '-',
             vehicle_type: applications.vehicle_information?.type || '-'
         } : null;

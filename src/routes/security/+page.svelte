@@ -15,6 +15,63 @@
     let searchQuery = $state('');
     let vehicleTypeFilter = $state('all'); // 'all', '2-Wheeler / Motorcycle', '4-Wheeler / Car'
 
+    // Capacity editing
+    let editingCapacity = $state(false);
+    let newCapacity = $state(data.stats.maxCapacity);
+    let capacityLoading = $state(false);
+
+    async function updateCapacity() {
+        if (newCapacity < 0 || newCapacity > 10000) {
+            alert('Capacity must be between 0 and 10000');
+            return;
+        }
+
+        capacityLoading = true;
+        try {
+            const res = await fetch('/api/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_capacity: newCapacity })
+            });
+
+            if (res.ok) {
+                data.stats.maxCapacity = newCapacity;
+                editingCapacity = false;
+                alert('Capacity updated successfully');
+            } else {
+                const json = await res.json();
+                alert(json.error || 'Failed to update capacity');
+            }
+        } catch (e) {
+            alert('Network error');
+        } finally {
+            capacityLoading = false;
+        }
+    }
+
+    // Real-time parking status updates
+    async function fetchParkingStatus() {
+        try {
+            const res = await fetch('/api/gate/stats');
+            if (res.ok) {
+                const json = await res.json();
+                data.stats.slot_occupied = json.slot_occupied || 0;
+                data.stats.slot_unoccupied = json.slot_unoccupied || data.stats.maxCapacity;
+                data.stats.currentlyIn = json.currentlyIn || 0;
+            }
+        } catch (e) {
+            console.error('Error fetching parking status:', e);
+        }
+    }
+
+    // Poll for real-time updates every 30 seconds
+    $effect(() => {
+        const statusInterval = setInterval(fetchParkingStatus, 30000);
+        return () => {
+            clearInterval(statusInterval);
+        };
+    });
+
     // ── Photo modal ──────────────────────────────────────────────────────────
     let showModal  = $state(false);
     let modalImage = $state('');
@@ -46,9 +103,10 @@
     let boundFilter   = $state('all');
     let selectedCampus = $state('all');
     
-    const allRoles = ['student', 'employee', 'visitor', 'concessionaire', 'guest', 'vip'];
-    let selectedRoles = $state([...allRoles]);
-    let roleDropdownOpen = $state(false);
+    // Print functionality for Vehicle Log tab
+    let selectedLogs = $state(new Set<number>());
+    let selectAllChecked = $state(false);
+    let printModeActive = $state(false);
 
     let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -137,22 +195,7 @@
         }
     }
 
-    // Gate logs functions for History and Vehicle Log tabs
-    function toggleRole(role: string) {
-        if (selectedRoles.includes(role)) {
-            selectedRoles = selectedRoles.filter(r => r !== role);
-        } else {
-            selectedRoles = [...selectedRoles, role];
-        }
-        currentPage = 1; fetchLogs();
-    }
-    
-    function getRoleDropdownLabel() {
-        if (selectedRoles.length === allRoles.length) return 'All Roles';
-        if (selectedRoles.length === 0) return 'No Roles';
-        if (selectedRoles.length === 1) return selectedRoles[0].charAt(0).toUpperCase() + selectedRoles[0].slice(1);
-        return `${selectedRoles.length} Roles`;
-    }
+
 
     function onSearchInput() {
         if (searchTimer) clearTimeout(searchTimer);
@@ -170,18 +213,23 @@
         }
     });
 
+    // Reset selection when logs change
+    $effect(() => {
+        if (logs.length === 0) {
+            selectedLogs.clear();
+            selectAllChecked = false;
+            printModeActive = false;
+        }
+    });
+
     async function fetchLogs() {
         loading = true;
         try {
             // Fetch gate logs from vehicle_log table for both History and Vehicle Log tabs
-            const roleParam = selectedRoles.length === allRoles.length ? 'all' : selectedRoles.join(',');
             const params = new URLSearchParams({
                 date:   selectedDate,
                 search: searchQuery,
-                type:   'all',
                 bound:  boundFilter,
-                campus: selectedCampus,
-                role:   roleParam,
                 page:   String(currentPage),
                 limit:  String(pageSize),
             });
@@ -198,7 +246,101 @@
     }
 
     function prevPage() { if (currentPage > 1) { currentPage--; fetchLogs(); } }
-    function nextPage() { if (currentPage < totalPages) { currentPage++; fetchLogs(); } }
+    function nextPage() { if (currentPage < totalPages) { currentPage++; fetchLogs(); }
+
+    // Print functionality for Vehicle Log tab
+    function toggleLogSelection(logId: number) {
+        if (selectedLogs.has(logId)) {
+            selectedLogs.delete(logId);
+        } else {
+            selectedLogs.add(logId);
+        }
+        selectAllChecked = selectedLogs.size === logs.length && logs.length > 0;
+    }
+
+    function toggleSelectAll() {
+        selectAllChecked = !selectAllChecked;
+        if (selectAllChecked) {
+            selectedLogs = new Set(logs.map((log: any) => log.vehicle_log_id));
+        } else {
+            selectedLogs.clear();
+        }
+    }
+
+    function togglePrintMode() {
+        console.log('Toggle print mode called, current state:', printModeActive);
+        printModeActive = !printModeActive;
+        console.log('New print mode state:', printModeActive);
+        if (!printModeActive) {
+            selectedLogs.clear();
+            selectAllChecked = false;
+        }
+    }
+
+    function printSelectedLogs() {
+        const selectedLogsData = logs.filter((log: any) => selectedLogs.has(log.vehicle_log_id));
+        if (selectedLogsData.length === 0) {
+            alert('Please select at least one log to print.');
+            return;
+        }
+        
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Please allow popups to print.');
+            return;
+        }
+
+        const printContent = `
+            <html>
+            <head>
+                <title>Vehicle Log Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h1 { text-align: center; margin-bottom: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #f9f9f9; }
+                    .print-date { text-align: right; margin-bottom: 10px; }
+                </style>
+            </head>
+            <body>
+                <h1>Vehicle Log Report</h1>
+                <div class="print-date">Printed: ${new Date().toLocaleString()}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Log ID</th>
+                            <th>Registration ID</th>
+                            <th>Vehicle Info ID</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Logged Status</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${selectedLogsData.map(log => `
+                            <tr>
+                                <td>${log.vehicle_log_id}</td>
+                                <td>${log.registration_id}</td>
+                                <td>${log.vehicle_information_id}</td>
+                                <td>${new Date(log.check_in).toLocaleString()}</td>
+                                <td>${log.check_out ? new Date(log.check_out).toLocaleString() : 'Still Inside'}</td>
+                                <td>${log.logged_status}</td>
+                                <td>${new Date(log.created_at).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.print();
+    } }
 
 
 </script>
@@ -223,15 +365,48 @@
     <div class="parking-info">
       <div class="parking-stat">
         <span class="parking-label">Capacity:</span>
-        <span class="parking-value">{data.stats.maxCapacity}</span>
+        {#if editingCapacity}
+          <input
+            type="number"
+            bind:value={newCapacity}
+            class="capacity-input"
+            min="0"
+            max="10000"
+            disabled={capacityLoading}
+          />
+          <button
+            class="capacity-btn capacity-save"
+            onclick={updateCapacity}
+            disabled={capacityLoading}
+          >
+            {capacityLoading ? 'Saving...' : 'Save'}
+          </button>
+          <button
+            class="capacity-btn capacity-cancel"
+            onclick={() => { editingCapacity = false; newCapacity = data.stats.maxCapacity; }}
+            disabled={capacityLoading}
+          >
+            Cancel
+          </button>
+        {:else}
+          <span class="parking-value">{data.stats.maxCapacity}</span>
+          <button
+            class="capacity-edit-btn"
+            onclick={() => { editingCapacity = true; newCapacity = data.stats.maxCapacity; }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        {/if}
       </div>
       <div class="parking-stat">
         <span class="parking-label">Occupied:</span>
         <span class="parking-value occupied">{data.stats.slot_occupied}</span>
+        <span class="realtime-indicator">●</span>
       </div>
       <div class="parking-stat">
         <span class="parking-label">Available:</span>
         <span class="parking-value available">{data.stats.slot_unoccupied}</span>
+        <span class="realtime-indicator">●</span>
       </div>
     </div>
   </div>
@@ -334,34 +509,17 @@
           <h2 class="title">Gate History</h2>
         </div>
         <div class="filters">
-          <div class="dropdown-wrap" use:clickOutside={() => roleDropdownOpen = false}>
-            <button class="filter-select dropdown-btn" onclick={() => roleDropdownOpen = !roleDropdownOpen}>
-              {getRoleDropdownLabel()}
-            </button>
-            {#if roleDropdownOpen}
-              <div class="dropdown-menu">
-                {#each allRoles as role}
-                  <label class="dropdown-item">
-                    <input type="checkbox" checked={selectedRoles.includes(role)} onchange={() => toggleRole(role)} />
-                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                  </label>
-                {/each}
-              </div>
-            {/if}
-          </div>
           <select bind:value={boundFilter} onchange={() => { currentPage = 1; fetchLogs(); }} class="filter-select">
             <option value="all">In &amp; Out</option>
             <option value="in">Entry Only</option>
             <option value="out">Exit Only</option>
           </select>
           <input type="date" bind:value={selectedDate} onchange={() => { currentPage = 1; fetchLogs(); }} class="filter-select" />
-          <select bind:value={selectedCampus} onchange={() => { currentPage = 1; fetchLogs(); }} class="filter-select">
-            <option value="all">All Campuses</option>
-            <option value="Liceo Main">Liceo Main</option>
-            <option value="RNP">RNP</option>
-            <option value="PASEO">PASEO</option>
-          </select>
-          <input type="text" placeholder="Search name, plate, vehicle…" bind:value={searchQuery} oninput={onSearchInput} class="search-box" />
+          <input type="text" placeholder="Search…" bind:value={searchQuery} oninput={onSearchInput} class="search-box" />
+          <button class="print-btn" onclick={() => togglePrintMode()}>{printModeActive ? 'Cancel Selection' : 'Print Selected'}</button>
+          {#if printModeActive}
+            <button class="print-btn" onclick={() => printSelectedLogs()}>Print</button>
+          {/if}
         </div>
       </div>
 
@@ -375,46 +533,53 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Type</th>
-                <th>Name / Role</th>
-                <th>Vehicle</th>
-                <th>Bound</th>
-                <th>Status</th>
+                {#if printModeActive}
+                  <th class="select-column">
+                    <input type="checkbox" checked={selectAllChecked} onchange={() => toggleSelectAll()} />
+                  </th>
+                {/if}
+                <th>Log ID</th>
+                <th>Registration ID</th>
+                <th>Vehicle Info ID</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Logged Status</th>
+                <th>Created At</th>
               </tr>
             </thead>
             <tbody>
               {#each logs as log}
-              <tr>
+              <tr class:selected-row={selectedLogs.has(log.vehicle_log_id)}>
+                {#if printModeActive}
+                  <td class="select-column">
+                    <input type="checkbox" checked={selectedLogs.has(log.vehicle_log_id)} onchange={() => toggleLogSelection(log.vehicle_log_id)} />
+                  </td>
+                {/if}
+                <td class="td-id">
+                  <span class="id-text">{log.vehicle_log_id}</span>
+                </td>
+                <td class="td-id">
+                  <span class="id-text">{log.registration_id}</span>
+                </td>
+                <td class="td-id">
+                  <span class="id-text">{log.vehicle_information_id}</span>
+                </td>
                 <td class="td-time">
-                  <span class="time-main">{log.time}</span>
-                  <span class="time-date">{log.date}</span>
+                  <span class="time-main">{new Date(log.check_in).toLocaleString()}</span>
+                </td>
+                <td class="td-time">
+                  <span class="time-main">{log.check_out ? new Date(log.check_out).toLocaleString() : 'Still Inside'}</span>
                 </td>
                 <td>
-                  <span class="chip {log.type === 'Guest' ? 'chip-guest' : (log.type === 'VIP' ? 'chip-vip' : 'chip-reg')}">{log.type}</span>
+                  <span class="chip chip-status">{log.logged_status}</span>
                 </td>
-                <td class="td-name">
-                  <span class="name-text">{log.name}</span>
-                  <span class="role-badge">{log.role}</span>
-                </td>
-                <td class="td-vehicle">
-                  {log.make}
-                  <span class="plate-tag">{log.plate}</span>
-                </td>
-                <td>
-                  <span class="chip" class:chip-in={log.bound === 'In'} class:chip-out={log.bound === 'Out'}>{log.bound}</span>
-                </td>
-                <td>
-                  {#if log.status}
-                    <span class="chip chip-anomaly">{log.status}</span>
-                  {:else}
-                    <span class="chip chip-ok">OK</span>
-                  {/if}
+                <td class="td-time">
+                  <span class="time-main">{new Date(log.created_at).toLocaleString()}</span>
                 </td>
               </tr>
               {:else}
               <tr>
-                <td colspan="6" class="empty-cell">No logs found for the selected filters.</td>
+                <td colspan={printModeActive ? 8 : 7} class="empty-cell">No logs found for the selected filters.</td>
               </tr>
               {/each}
             </tbody>
@@ -435,6 +600,59 @@
             </button>
           </div>
         {/if}
+      {/if}
+
+      <!-- Selected Logs Table -->
+      {#if printModeActive && selectedLogs.size > 0}
+        <div class="selected-logs-section">
+          <div class="header">
+            <div class="header-left">
+              <h2 class="title">Selected Logs ({selectedLogs.size})</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Log ID</th>
+                  <th>Registration ID</th>
+                  <th>Vehicle Info ID</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Logged Status</th>
+                  <th>Created At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each logs.filter((log: any) => selectedLogs.has(log.vehicle_log_id)) as log}
+                <tr>
+                  <td class="td-id">
+                    <span class="id-text">{log.vehicle_log_id}</span>
+                  </td>
+                  <td class="td-id">
+                    <span class="id-text">{log.registration_id}</span>
+                  </td>
+                  <td class="td-id">
+                    <span class="id-text">{log.vehicle_information_id}</span>
+                  </td>
+                  <td class="td-time">
+                    <span class="time-main">{new Date(log.check_in).toLocaleString()}</span>
+                  </td>
+                  <td class="td-time">
+                    <span class="time-main">{log.check_out ? new Date(log.check_out).toLocaleString() : 'Still Inside'}</span>
+                  </td>
+                  <td>
+                    <span class="chip chip-status">{log.logged_status}</span>
+                  </td>
+                  <td class="td-time">
+                    <span class="time-main">{new Date(log.created_at).toLocaleString()}</span>
+                  </td>
+                </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </div>
       {/if}
     </div>
   {:else if tab === 'History'}
@@ -756,6 +974,75 @@
     color: var(--text-primary);
   }
 
+  .capacity-input {
+    width: 80px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+
+  .capacity-btn {
+    padding: 0.25rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 0.25rem;
+  }
+
+  .capacity-save {
+    background: var(--maroon);
+    color: white;
+  }
+
+  .capacity-save:hover:not(:disabled) {
+    background: var(--maroon-light);
+  }
+
+  .capacity-cancel {
+    background: #e2e8f0;
+    color: var(--text-primary);
+  }
+
+  .capacity-cancel:hover:not(:disabled) {
+    background: #cbd5e1;
+  }
+
+  .capacity-edit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0.25rem;
+    margin-left: 0.5rem;
+    transition: color 0.2s;
+  }
+
+  .capacity-edit-btn:hover {
+    color: var(--maroon);
+  }
+
+  .capacity-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .realtime-indicator {
+    color: #22c55e;
+    font-size: 0.6rem;
+    margin-left: 0.25rem;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
   .parking-value.occupied {
     color: #dc2626;
   }
@@ -878,7 +1165,7 @@
   }
   .search-clear:hover { color: var(--text); }
 
-  .filters { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+  .filters { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; pointer-events: auto; }
 
   .filter-select, .ctrl-input {
     height: 32px;
@@ -1541,5 +1828,38 @@
   }
   .card-qr a:hover {
     text-decoration: underline;
+  }
+
+  /* ── Print functionality styles ─────────────────────────────────────────── */
+  .print-btn {
+    background: var(--maroon);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    pointer-events: auto;
+    z-index: 1;
+  }
+  .print-btn:hover { background: #8b1a3b; }
+
+  .select-column { width: 40px; text-align: center; }
+  .select-column input[type="checkbox"] { cursor: pointer; }
+  
+  .td-id { text-align: center; }
+  .id-text { font-family: monospace; font-size: 0.85rem; color: var(--text-dim); }
+  
+  .selected-row { background-color: #fff3cd !important; }
+  
+  .selected-logs-section {
+    margin-top: 1.5rem;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
   }
 </style>

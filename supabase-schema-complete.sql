@@ -484,6 +484,8 @@ CREATE TABLE registration (
 
     qr_code VARCHAR(255),
 
+    qr_unique_code VARCHAR(50),
+
 
     is_owner BOOLEAN
         NOT NULL
@@ -932,7 +934,63 @@ CREATE TABLE change_vehicle_requests (
 
 
 -- ============================================================
--- 26. SYSTEM_SETTINGS TABLE
+-- 26. NOTIFICATIONS TABLE
+-- ============================================================
+--
+-- Supports application notifications and activity tracking
+-- for all dashboard users including OSA, Dean, Security, etc.
+-- ============================================================
+
+
+CREATE TABLE notifications (
+    notification_id SERIAL PRIMARY KEY,
+    
+    user_id INTEGER
+        NOT NULL,
+    
+    notification_type VARCHAR(50)
+        NOT NULL,
+    
+    message TEXT
+        NOT NULL,
+    
+    -- For activity tracking
+    actor_id INTEGER,
+    action_type VARCHAR(50),
+    target_entity_type VARCHAR(50),
+    target_entity_id INTEGER,
+    
+    -- For application-specific notifications
+    reference_id INTEGER,
+    
+    metadata JSONB,
+    
+    is_read BOOLEAN
+        NOT NULL
+        DEFAULT FALSE,
+    
+    created_at TIMESTAMPTZ
+        NOT NULL
+        DEFAULT NOW(),
+    
+    read_at TIMESTAMPTZ,
+    
+    CONSTRAINT fk_notification_user
+        FOREIGN KEY (user_id)
+        REFERENCES "user"(user_id)
+        ON DELETE CASCADE
+);
+
+-- Indexes for notifications
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_actor_id ON notifications(actor_id);
+CREATE INDEX idx_notifications_target_entity ON notifications(target_entity_type, target_entity_id);
+
+
+-- ============================================================
+-- 27. SYSTEM_SETTINGS TABLE
 -- ============================================================
 
 
@@ -982,7 +1040,7 @@ CREATE TABLE system_settings (
 
 
 -- ============================================================
--- 27. INDEXES
+-- 28. INDEXES
 -- ============================================================
 
 
@@ -1076,7 +1134,7 @@ ON change_vehicle_requests(original_vehicle_id);
 
 
 -- ============================================================
--- 28. UPDATED_AT FUNCTION
+-- 29. UPDATED_AT FUNCTION
 -- ============================================================
 
 
@@ -1096,7 +1154,7 @@ $$;
 
 
 -- ============================================================
--- 29. UPDATED_AT TRIGGERS
+-- 30. UPDATED_AT TRIGGERS
 -- ============================================================
 
 
@@ -1125,7 +1183,7 @@ EXECUTE FUNCTION update_updated_at_column();
 
 
 -- ============================================================
--- 30. CREATE USER IF NOT EXISTS FUNCTION
+-- 31. CREATE USER IF NOT EXISTS FUNCTION
 -- ============================================================
 
 
@@ -1180,7 +1238,7 @@ $$;
 
 
 -- ============================================================
--- 31. OSA ADMIN FUNCTION
+-- 32. OSA ADMIN FUNCTION
 -- ============================================================
 
 
@@ -1210,7 +1268,7 @@ $$;
 
 
 -- ============================================================
--- 32. SAFETY SECURITY ADMIN FUNCTION
+-- 33. SAFETY SECURITY ADMIN FUNCTION
 -- ============================================================
 
 
@@ -1240,7 +1298,7 @@ $$;
 
 
 -- ============================================================
--- 33. DEAN FUNCTION
+-- 34. DEAN FUNCTION
 -- ============================================================
 
 
@@ -1270,7 +1328,7 @@ $$;
 
 
 -- ============================================================
--- 34. GET USER ROLE FUNCTION
+-- 35. GET USER ROLE FUNCTION
 -- ============================================================
 
 
@@ -1325,7 +1383,7 @@ $$;
 
 
 -- ============================================================
--- 35. GET CURRENT USER ID
+-- 36. GET CURRENT USER ID
 -- ============================================================
 
 
@@ -1346,7 +1404,7 @@ $$;
 
 
 -- ============================================================
--- 36. GET CURRENT USER DEPARTMENT
+-- 37. GET CURRENT USER DEPARTMENT
 -- ============================================================
 
 
@@ -1367,7 +1425,7 @@ $$;
 
 
 -- ============================================================
--- 37. DEFAULT OSA ADMIN
+-- 38. DEFAULT OSA ADMIN
 -- ============================================================
 
 
@@ -1390,7 +1448,7 @@ DO UPDATE SET
 
 
 -- ============================================================
--- 38. DEFAULT SYSTEM SETTINGS
+-- 39. DEFAULT SYSTEM SETTINGS
 -- ============================================================
 
 

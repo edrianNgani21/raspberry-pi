@@ -52,6 +52,8 @@
 
 <div class="otp-page">
   <div class="bg-glow"></div>
+  <div class="bg-image"></div>
+  <div class="bg-overlay"></div>
 
   <div class="otp-card">
     <div class="envelope-icon">
@@ -104,87 +106,121 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem 1.25rem;
-    background: linear-gradient(135deg, var(--maroon-deep) 0%, var(--maroon-dark) 50%, var(--maroon) 100%);
+    padding: var(--space-xl);
+    background: var(--bg-gradient);
     position: relative;
     overflow: hidden;
   }
 
   .bg-glow {
     position: absolute;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(201,162,39,0.12) 0%, transparent 70%);
-    bottom: -100px;
-    left: -100px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(212,166,42,0.15) 0%, transparent 70%);
+    bottom: -150px;
+    left: -150px;
     pointer-events: none;
+    animation: pulse 4s ease-in-out infinite reverse;
+    z-index: 2;
+  }
+
+  .bg-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/rodelsa-image.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 0;
+  }
+
+  .bg-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.7) 100%);
+    z-index: 1;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
   }
 
   .otp-card {
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    padding: 2.5rem 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-2xl);
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
-    box-shadow: var(--shadow-lg);
+    gap: var(--space-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
     position: relative;
-    z-index: 1;
+    z-index: 10;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .envelope-icon {
-    width: 72px;
-    height: 72px;
-    background: linear-gradient(135deg, var(--maroon-tint), var(--maroon-muted));
-    border: 2px solid var(--border);
+    width: 80px;
+    height: 80px;
+    background: var(--gradient-maroon);
+    border: 3px solid white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--maroon);
-    margin-bottom: 0.5rem;
-    animation: float 3s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+    color: #fff;
+    margin-bottom: var(--space-sm);
+    box-shadow: var(--shadow-gold-md);
   }
 
   .otp-title {
-    font-size: 1.4rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     color: var(--maroon);
     letter-spacing: -0.02em;
     margin: 0;
+    background: var(--gradient-maroon);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .otp-main {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     color: var(--text-secondary);
     line-height: 1.6;
     margin: 0;
+    font-weight: 500;
   }
 
   .otp-form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--space-lg);
     width: 100%;
-    margin-top: 0.5rem;
+    margin-top: var(--space-sm);
   }
 
   .error-msg {
-    color: #b91c1c;
-    background: #fef2f2;
-    border: 1px solid #fca5a5;
-    padding: 0.5rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.8rem;
+    color: #B91C1C;
+    background: #FEF2F2;
+    border: 2px solid #FCA5A5;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 600;
   }
 
   .field-group {
@@ -194,33 +230,41 @@
 
   .otp-input {
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     letter-spacing: 0.5rem;
-    padding: 0.75rem;
+    padding: var(--space-md);
     border: 2px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 56px;
+    font-weight: 700;
   }
 
   .otp-input:focus {
-    border-color: var(--maroon);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 4px rgba(212,166,42,0.15);
   }
 
   .verify-btn {
-    padding: 0.875rem;
-    background: var(--maroon);
+    padding: var(--space-md);
+    background: var(--gradient-maroon);
     color: #fff;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
     border: none;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 52px;
+    box-shadow: var(--shadow-gold-sm);
   }
 
   .verify-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    background: var(--gradient-gold);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-gold-md);
   }
 
   .verify-btn:disabled {
@@ -229,35 +273,61 @@
   }
 
   .otp-sub {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
-    margin: 1rem 0 0;
+    margin: var(--space-md) 0 0;
+    font-weight: 500;
   }
 
   .retry-link {
     color: var(--maroon);
-    font-weight: 600;
-    text-decoration: underline;
+    font-weight: 700;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .retry-link:hover {
+    color: var(--gold);
   }
 
   .back-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.5rem;
-    padding: 0.625rem 1.25rem;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    padding: var(--space-sm) var(--space-lg);
     background: var(--maroon-muted);
     color: var(--maroon);
-    font-size: 0.8rem;
-    font-weight: 600;
-    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
     text-decoration: none;
-    border: 1.5px solid var(--border);
-    transition: background 0.15s, transform 0.15s;
+    border: 2px solid var(--maroon-tint);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .back-btn:hover {
     background: var(--maroon-tint);
     transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  @media (max-width: 768px) {
+    .otp-page {
+      padding: var(--space-lg);
+    }
+
+    .otp-card {
+      padding: var(--space-xl);
+    }
+
+    .envelope-icon {
+      width: 64px;
+      height: 64px;
+    }
+
+    .otp-title {
+      font-size: 1.25rem;
+    }
   }
 </style>

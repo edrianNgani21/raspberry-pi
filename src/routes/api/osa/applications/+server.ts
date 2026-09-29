@@ -6,6 +6,44 @@ import { join } from 'path';
 import fs from 'fs';
 import { sendEmail } from '$lib/server/email';
 
+async function createNotification(
+    userId: number,
+    notificationType: string,
+    message: string,
+    actorId?: number,
+    actionType?: string,
+    targetEntityType?: string,
+    targetEntityId?: number,
+    referenceId?: number,
+    metadata?: any
+) {
+    try {
+        await supabase.from('notifications').insert({
+            user_id: userId,
+            notification_type: notificationType,
+            message: message,
+            actor_id: actorId || null,
+            action_type: actionType || null,
+            target_entity_type: targetEntityType || null,
+            target_entity_id: targetEntityId || null,
+            reference_id: referenceId || null,
+            metadata: metadata || null,
+            is_read: false
+        });
+    } catch (error) {
+        console.error('Failed to create notification:', error);
+    }
+}
+
+function generateUniqueCode(length: number = 8): string {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user || locals.user.role !== 'osa') {
         return json({ error: 'Unauthorized' }, { status: 403 });
@@ -53,7 +91,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .select(`
                 *,
                 user:user_id(
-                    email
+                    email,
+                    user_id
                 )
             `)
             .eq('registration_id', registration_id)
@@ -69,9 +108,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (!schedule) {
                 return json({ error: 'Schedule is required to accept application' }, { status: 400 });
             }
-            // Generate QR code (Data URI)
-            // Using ID number if available, otherwise just reg ID
-            const qrData = reg.id ? reg.id : `REG-${registration_id}`;
+            // Generate QR code with unique alphanumeric string
+            const uniqueCode = generateUniqueCode(8);
+            const qrData = uniqueCode;
             const filename = `qr-${registration_id}-${Date.now()}.png`;
             const filepath = join(process.cwd(), 'static', 'uploads', filename);
 
@@ -87,6 +126,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     status: 'distributed',
                     osa_val_at: new Date().toISOString(),
                     qr_code: qrUrl,
+                    qr_unique_code: uniqueCode,
                     dist_sched: new Date(schedule).toISOString(),
                     expires_at: expiresAt.toISOString()
                 })
@@ -100,6 +140,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 `Congrats your registration has been accepted. You are scheduled to visit OSA to pass the notarized filled up hardcopied agreements and notarized requirements, and receive your QR sticker code. Schedule: ${new Date(schedule).toLocaleString()}.`,
                 `<p>Congrats your registration has been accepted. You are scheduled to visit OSA to pass the notarized filled up hardcopied agreements and notarized requirements, and receive your QR sticker code.</p><p>Schedule: <strong>${new Date(schedule).toLocaleString()}</strong>.</p>`
             );
+
+            // Create notification for the applicant
+            if (reg.user?.user_id) {
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    reg.user.user_id,
+                    'application_approved',
+                    'Application approved successfully!',
+                    actorId,
+                    'approve_application',
+                    'registration',
+                    registration_id,
+                    registration_id,
+                    { schedule: new Date(schedule).toISOString() }
+                );
+            }
         } 
         else if (action === 'reject' && reg.status === 'osa_val') {
             if (!reason) return json({ error: 'Reason required' }, { status: 400 });
@@ -121,6 +177,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 `Your vehicle sticker application was rejected by OSA. Reason: ${reason}`,
                 `<p>Your vehicle sticker application was <strong>rejected by OSA</strong>.</p><p>Reason: <em>${reason}</em></p>`
             );
+
+            // Create notification for the applicant
+            if (reg.user?.user_id) {
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    reg.user.user_id,
+                    'application_rejected',
+                    'Application rejected successfully!',
+                    actorId,
+                    'reject_application',
+                    'registration',
+                    registration_id,
+                    registration_id,
+                    { reason }
+                );
+            }
         }
         else if (action === 'deliver' && reg.status === 'distributed') {
             const { error: updateError } = await supabase
@@ -136,6 +208,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 'Your vehicle sticker has been marked as delivered by OSA.',
                 '<p>Your vehicle sticker has been marked as <strong>delivered</strong> by OSA.</p>'
             );
+
+            // Create notification for the applicant
+            if (reg.user?.user_id) {
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    reg.user.user_id,
+                    'sticker_delivered',
+                    'Sticker delivered successfully!',
+                    actorId,
+                    'deliver_sticker',
+                    'registration',
+                    registration_id,
+                    registration_id
+                );
+            }
         }
         else if (action === 'revoke' && reg.status === 'distributed') {
             if (!reason) return json({ error: 'Reason required' }, { status: 400 });
@@ -157,6 +244,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 `Your parking access has been revoked by OSA. Reason: ${reason}`,
                 `<p>Your parking access has been <strong>revoked</strong> by OSA.</p><p>Reason: <em>${reason}</em></p>`
             );
+
+            // Create notification for the applicant
+            if (reg.user?.user_id) {
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    reg.user.user_id,
+                    'access_revoked',
+                    'Access revoked successfully!',
+                    actorId,
+                    'revoke_access',
+                    'registration',
+                    registration_id,
+                    registration_id,
+                    { reason }
+                );
+            }
         }
         else if (action === 'retract') {
             const { error: updateError } = await supabase
@@ -168,7 +271,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     revoked_at: null, 
                     rejected_at: null, 
                     invalid_reason: null, 
-                    qr_code: null 
+                    qr_code: null,
+                    qr_unique_code: null
                 })
                 .eq('registration_id', registration_id);
 
@@ -180,6 +284,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 'Your application approval has been retracted by OSA and is back under review.',
                 '<p>Your application approval has been <strong>retracted</strong> by OSA and is back under review.</p>'
             );
+
+            // Create notification for the applicant
+            if (reg.user?.user_id) {
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    reg.user.user_id,
+                    'approval_retracted',
+                    'Approval retracted successfully!',
+                    actorId,
+                    'retract_approval',
+                    'registration',
+                    registration_id,
+                    registration_id
+                );
+            }
         }
         else if (action === 'unrevoke' && reg.status === 'revoked') {
             if (reg.expires_at && new Date(reg.expires_at) < new Date()) {
@@ -203,6 +322,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 'Your parking access has been restored by OSA.',
                 '<p>Your parking access has been <strong>restored</strong> by OSA.</p>'
             );
+
+            // Create notification for the applicant
+            if (reg.user?.user_id) {
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    reg.user.user_id,
+                    'access_restored',
+                    'Access restored successfully!',
+                    actorId,
+                    'restore_access',
+                    'registration',
+                    registration_id,
+                    registration_id
+                );
+            }
         }
         else if (action === 'delete') {
             const files = [reg.doc_id, reg.doc_load, reg.doc_or, reg.doc_cr, reg.doc_license, reg.doc_letter, reg.qr_code].filter(Boolean);
@@ -230,6 +364,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 'Your vehicle sticker application has been permanently deleted by OSA.',
                 '<p>Your vehicle sticker application has been <strong>permanently deleted</strong> by OSA.</p>'
             );
+
+            // Create notification for the applicant
+            if (reg.user?.user_id) {
+                const actorId = locals.user?.user_id;
+                await createNotification(
+                    reg.user.user_id,
+                    'application_deleted',
+                    'Application deleted successfully!',
+                    actorId,
+                    'delete_application',
+                    'registration',
+                    registration_id,
+                    registration_id
+                );
+            }
         }
         else {
             return json({ error: 'Invalid action for current status' }, { status: 400 });

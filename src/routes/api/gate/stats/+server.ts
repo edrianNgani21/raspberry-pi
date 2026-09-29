@@ -155,11 +155,12 @@ export const GET: RequestHandler = async ({ request, url, locals }) => {
 
         const { data: settingsData } = await supabase
             .from('parking_availability')
-            .select('parking_capacity, max_capacity')
-            .eq('id', 1)
-            .single();
+            .select('parking_capacity')
+            .order('date_time', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        const maxCapacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? -1;
+        const maxCapacity = settingsData?.parking_capacity ?? -1;
 
         // Vehicle classification breakdown (currently in)
         const { data: vehicleTypeData } = await supabase

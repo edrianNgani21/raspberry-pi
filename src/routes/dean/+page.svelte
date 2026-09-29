@@ -116,6 +116,11 @@
       alert("Network error");
     }
   }
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  }
 </script>
 
 <svelte:head>
@@ -128,11 +133,19 @@
 
 <AppShell userEmail={data.userEmail}>
   <div class="page-header">
-    <h1>Department Head Portal</h1>
-    <p class="page-subtitle">Review and approve vehicle sticker applications</p>
-    {#if data.departmentName}
-      <p class="department-name">{data.departmentName}</p>
-    {/if}
+    <div class="header-content">
+      <div>
+        <h1>Department Head Portal</h1>
+        <p class="page-subtitle">Review and approve vehicle sticker applications</p>
+        {#if data.departmentName}
+          <p class="department-name">{data.departmentName}</p>
+        {/if}
+      </div>
+      <button class="logout-btn" onclick={handleLogout}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </button>
+    </div>
   </div>
 
   <TabBar {tabs} active={tab} onchange={(t) => (tab = t)} />
@@ -213,6 +226,7 @@
           department: app.department_name || "-",
           dean: app.department_email || "-",
           vehicle: app.vehicle_make,
+          color: app.vehicle_color,
           plate: app.vehicle_plate,
           owner: app.is_owner ? "Yes" : "No",
           status: app.status,
@@ -246,11 +260,39 @@
     margin-bottom: 1.5rem;
   }
 
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
   .page-header h1 {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
+  }
+
+  .logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--maroon);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    box-shadow: 0 2px 8px rgba(107,26,42,0.25);
+  }
+
+  .logout-btn:hover {
+    background: #551320;
+    box-shadow: 0 4px 12px rgba(107,26,42,0.35);
   }
 
   .page-subtitle {
@@ -409,5 +451,4 @@
     border: 1px dashed #e2e8f0;
     border-radius: 12px;
   }
-
 </style>

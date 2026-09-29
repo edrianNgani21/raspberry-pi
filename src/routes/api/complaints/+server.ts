@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ locals }) => {
                 .from('complaint')
                 .select(`
                     *,
-                    user:user_email(
+                    user:user_id(
                         email
                     )
                 `)
@@ -30,7 +30,7 @@ export const GET: RequestHandler = async ({ locals }) => {
                     const { data: regData } = await supabase
                         .from('registration')
                         .select('first_name, last_name, contact_number, role, campus')
-                        .eq('user_id', complaint.user?.email) // Note: This might need adjustment based on actual schema
+                        .eq('user_id', complaint.user_id)
                         .order('created_at', { ascending: false })
                         .limit(1)
                         .single();
@@ -47,10 +47,21 @@ export const GET: RequestHandler = async ({ locals }) => {
             }
         } else {
             // Standard users see only their complaints
+            // Get user_id from email
+            const { data: userData, error: userError } = await supabase
+                .from('user')
+                .select('user_id')
+                .eq('email', locals.user.email)
+                .single();
+
+            if (userError || !userData) {
+                return json({ error: 'User not found' }, { status: 404 });
+            }
+
             const { data: rows } = await supabase
                 .from('complaint')
                 .select('*')
-                .eq('user_email', locals.user.email)
+                .eq('user_id', userData.user_id)
                 .order('created_at', { ascending: false });
 
             complaints = rows || [];
@@ -75,10 +86,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'Message is required' }, { status: 400 });
         }
 
+        // Get user_id from email
+        const { data: userData, error: userError } = await supabase
+            .from('user')
+            .select('user_id')
+            .eq('email', locals.user.email)
+            .single();
+
+        if (userError || !userData) {
+            return json({ error: 'User not found' }, { status: 404 });
+        }
+
         const { error: insertError } = await supabase
             .from('complaint')
             .insert({
-                user_email: locals.user.email,
+                user_id: userData.user_id,
                 message: message.trim()
             });
 

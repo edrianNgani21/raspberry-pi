@@ -34,6 +34,12 @@ export const load: PageServerLoad = async ({ locals }) => {
                 ),
                 user:user_id(
                     email
+                ),
+                vehicle_information:vehicle_information_id(
+                    plate_number,
+                    brand,
+                    color,
+                    type
                 )
             `)
             .in('status', ['distributed', 'completed'])
@@ -43,7 +49,8 @@ export const load: PageServerLoad = async ({ locals }) => {
             ...v,
             department_name: v.department?.department,
             department_email: v.department?.email,
-            user_email: v.user?.email
+            user_email: v.user?.email,
+            vehicle_information: v.vehicle_information
         }));
 
         // Fetch stats for dashboard
@@ -65,15 +72,17 @@ export const load: PageServerLoad = async ({ locals }) => {
             .select('*', { count: 'exact', head: true })
             .eq('status', 'Pending');
 
-        // Fetch parking availability data
+        // Fetch parking availability data for real-time status
         const { data: parkingData } = await supabase
             .from('parking_availability')
-            .select('parking_capacity, max_capacity, slot_occupied, slot_unoccupied, date_time')
+            .select('parking_capacity, slot_occupied, slot_unoccupied, date_time')
             .order('date_time', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
-        const parking_capacity = parkingData?.max_capacity ?? parkingData?.parking_capacity ?? 0;
+        const max_capacity = parkingData?.parking_capacity ?? 500;
+
+        const parking_capacity = parkingData?.parking_capacity ?? max_capacity;
         const slot_occupied = parkingData?.slot_occupied || 0;
         const slot_unoccupied = parkingData?.slot_unoccupied || parking_capacity;
         const parking_last_updated = parkingData?.date_time || null;
@@ -86,7 +95,7 @@ export const load: PageServerLoad = async ({ locals }) => {
             guestsIn: 0,
             vipsIn: 0,
             anomaliesToday: 0,
-            maxCapacity: parking_capacity,
+            maxCapacity: max_capacity,
             total2Wheelers: 0,
             total4Wheelers: 0,
             slot_occupied,
@@ -123,17 +132,8 @@ export const load: PageServerLoad = async ({ locals }) => {
             stats.visitsToday = statsRows.length;
         }
 
-        // Fetch capacity settings from parking_availability table
-        const { data: settingsData } = await supabase
-            .from('parking_availability')
-            .select('parking_capacity, max_capacity')
-            .eq('id', 1)
-            .single();
-
-        if (settingsData) {
-            // Use max_capacity if available (new column), otherwise use parking_capacity (original column)
-            stats.maxCapacity = settingsData.max_capacity ?? settingsData.parking_capacity ?? -1;
-        }
+        // Use max_capacity from parkingData already fetched above
+        stats.maxCapacity = max_capacity;
 
         return {
             userEmail,

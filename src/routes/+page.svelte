@@ -429,6 +429,10 @@
 
   <!-- Navigation -->
   <div class="nav-btns" class:split={section > 1}>
+    <button class="nav-btn btn-home" onclick={() => goto('/status')}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Back to Status
+    </button>
     {#if section > 1}
       <button class="nav-btn btn-back" onclick={() => section--}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -481,7 +485,7 @@
         <span>Upload</span>
       </div>
     {/if}
-    <input hidden type="file" accept="image/*"
+    <input hidden type="file" accept=".pdf,.jpg,.jpeg,.png,.tiff,.bmp"
       onchange={(e) => setFile(key, e.currentTarget.files?.[0] ?? null)} />
   </label>
 {/snippet}

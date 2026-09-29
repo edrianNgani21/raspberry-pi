@@ -63,7 +63,7 @@ export const POST: RequestHandler = async ({ request }) => {
                         .from('guestlog')
                         .select('guest_id')
                         .eq('ticket_no', newTicketNo)
-                        .single();
+                        .maybeSingle();
                     
                     if (!rows) isUnique = true;
                 }
@@ -91,11 +91,12 @@ export const POST: RequestHandler = async ({ request }) => {
             // Get current parking capacity settings
             const { data: settingsData } = await supabase
                 .from('parking_availability')
-                .select('parking_capacity, max_capacity')
-                .eq('id', 1)
-                .single();
+                .select('parking_capacity')
+                .order('date_time', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+            const parking_capacity = settingsData?.parking_capacity ?? 0;
 
             // Get current slot counts from the most recent parking availability record
             const { data: lastParkingData } = await supabase
@@ -103,7 +104,7 @@ export const POST: RequestHandler = async ({ request }) => {
                 .select('slot_occupied, slot_unoccupied')
                 .order('date_time', { ascending: false })
                 .limit(1)
-                .single();
+                .maybeSingle();
 
             const current_occupied = lastParkingData?.slot_occupied || 0;
             const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;
@@ -112,14 +113,25 @@ export const POST: RequestHandler = async ({ request }) => {
             const new_occupied = current_occupied + 1;
             const new_unoccupied = Math.max(0, current_unoccupied - 1);
 
-            // Create new parking availability record (use 0 as vehicle_log_id for guests)
+            // Get a valid vehicle_log_id for foreign key constraint
+            const { data: vehicleLog } = await supabase
+                .from('vehicle_log')
+                .select('vehicle_log_id')
+                .order('vehicle_log_id', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            const vehicle_log_id = vehicleLog?.vehicle_log_id || 0;
+
+            // Create new parking availability record (use existing vehicle_log_id for guests)
             const { error: parkingError } = await supabase
                 .from('parking_availability')
                 .insert({
-                    vehicle_log_id: 0, // Guests don't have vehicle_log_id
+                    vehicle_log_id, // Use existing vehicle_log_id for foreign key constraint
                     parking_capacity,
                     slot_occupied: new_occupied,
-                    slot_unoccupied: new_unoccupied
+                    slot_unoccupied: new_unoccupied,
+                    date_time: new Date().toISOString()
                 });
 
             if (parkingError) {
@@ -143,7 +155,7 @@ export const POST: RequestHandler = async ({ request }) => {
                 .is('out', null)
                 .order('in', { ascending: false })
                 .limit(1)
-                .single();
+                .maybeSingle();
 
             if (rows) {
                 // Update the existing IN row with OUT timestamp and photo
@@ -162,11 +174,12 @@ export const POST: RequestHandler = async ({ request }) => {
                 // Get current parking capacity settings
                 const { data: settingsData } = await supabase
                     .from('parking_availability')
-                    .select('parking_capacity, max_capacity')
-                    .eq('id', 1)
-                    .single();
+                    .select('parking_capacity')
+                    .order('date_time', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
-                const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+                const parking_capacity = settingsData?.parking_capacity ?? 0;
 
                 // Get current slot counts from the most recent parking availability record
                 const { data: lastParkingData } = await supabase
@@ -174,7 +187,7 @@ export const POST: RequestHandler = async ({ request }) => {
                     .select('slot_occupied, slot_unoccupied')
                     .order('date_time', { ascending: false })
                     .limit(1)
-                    .single();
+                    .maybeSingle();
 
                 const current_occupied = lastParkingData?.slot_occupied || 0;
                 const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;
@@ -183,14 +196,25 @@ export const POST: RequestHandler = async ({ request }) => {
                 const new_occupied = Math.max(0, current_occupied - 1);
                 const new_unoccupied = Math.min(parking_capacity, current_unoccupied + 1);
 
-                // Create new parking availability record (use 0 as vehicle_log_id for guests)
+                // Get a valid vehicle_log_id for foreign key constraint
+                const { data: vehicleLog } = await supabase
+                    .from('vehicle_log')
+                    .select('vehicle_log_id')
+                    .order('vehicle_log_id', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                const vehicle_log_id = vehicleLog?.vehicle_log_id || 0;
+
+                // Create new parking availability record (use existing vehicle_log_id for guests)
                 const { error: parkingError } = await supabase
                     .from('parking_availability')
                     .insert({
-                        vehicle_log_id: 0, // Guests don't have vehicle_log_id
+                        vehicle_log_id, // Use existing vehicle_log_id for foreign key constraint
                         parking_capacity,
                         slot_occupied: new_occupied,
-                        slot_unoccupied: new_unoccupied
+                        slot_unoccupied: new_unoccupied,
+                        date_time: new Date().toISOString()
                     });
 
                 if (parkingError) {
@@ -205,7 +229,7 @@ export const POST: RequestHandler = async ({ request }) => {
                     .eq('ticket_no', ticket_no)
                     .order('in', { ascending: false })
                     .limit(1)
-                    .single();
+                    .maybeSingle();
 
                 const mm = inRows?.make_model || 'Unknown';
                 const pl = inRows?.plate || 'Unknown';
@@ -232,11 +256,12 @@ export const POST: RequestHandler = async ({ request }) => {
                 // Get current parking capacity settings
                 const { data: settingsData } = await supabase
                     .from('parking_availability')
-                    .select('parking_capacity, max_capacity')
-                    .eq('id', 1)
-                    .single();
+                    .select('parking_capacity')
+                    .order('date_time', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
-                const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+                const parking_capacity = settingsData?.parking_capacity ?? 0;
 
                 // Get current slot counts from the most recent parking availability record
                 const { data: lastParkingData } = await supabase
@@ -244,7 +269,7 @@ export const POST: RequestHandler = async ({ request }) => {
                     .select('slot_occupied, slot_unoccupied')
                     .order('date_time', { ascending: false })
                     .limit(1)
-                    .single();
+                    .maybeSingle();
 
                 const current_occupied = lastParkingData?.slot_occupied || 0;
                 const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;
@@ -253,14 +278,25 @@ export const POST: RequestHandler = async ({ request }) => {
                 const new_occupied = Math.max(0, current_occupied - 1);
                 const new_unoccupied = Math.min(parking_capacity, current_unoccupied + 1);
 
-                // Create new parking availability record (use 0 as vehicle_log_id for guests)
+                // Get a valid vehicle_log_id for foreign key constraint
+                const { data: vehicleLog } = await supabase
+                    .from('vehicle_log')
+                    .select('vehicle_log_id')
+                    .order('vehicle_log_id', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                const vehicle_log_id = vehicleLog?.vehicle_log_id || 0;
+
+                // Create new parking availability record (use existing vehicle_log_id for guests)
                 const { error: parkingError } = await supabase
                     .from('parking_availability')
                     .insert({
-                        vehicle_log_id: 0, // Guests don't have vehicle_log_id
+                        vehicle_log_id, // Use existing vehicle_log_id for foreign key constraint
                         parking_capacity,
                         slot_occupied: new_occupied,
-                        slot_unoccupied: new_unoccupied
+                        slot_unoccupied: new_unoccupied,
+                        date_time: new Date().toISOString()
                     });
 
                 if (parkingError) {

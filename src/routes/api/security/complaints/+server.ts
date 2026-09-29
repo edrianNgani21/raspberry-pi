@@ -12,19 +12,41 @@ export const GET: RequestHandler = async ({ locals }) => {
     try {
         let query = supabase
             .from('complaint')
-            .select('*')
+            .select(`
+                *,
+                user:user_id(
+                    email
+                )
+            `)
             .order('created_at', { ascending: false });
 
         // Security users see all complaints, regular users see only their own
         if (locals.user.role !== 'security') {
-            query = query.eq('user_email', locals.user.email);
+            // Get user_id from email for regular users
+            const { data: userData, error: userError } = await supabase
+                .from('user')
+                .select('user_id')
+                .eq('email', locals.user.email)
+                .single();
+
+            if (userError || !userData) {
+                return json({ error: 'User not found' }, { status: 404 });
+            }
+
+            query = query.eq('user_id', userData.user_id);
         }
 
         const { data, error } = await query.limit(100);
 
         if (error) throw error;
 
-        return json({ complaints: data });
+        // Map user_email for frontend compatibility
+        const complaints = data?.map(c => ({
+            ...c,
+            user_email: c.user?.email
+        })) || [];
+
+        return json({ complaints });
     } catch (error) {
         console.error('Error fetching complaints:', error);
         return json({ error: 'Failed to fetch complaints' }, { status: 500 });
@@ -43,10 +65,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'Message is required' }, { status: 400 });
         }
 
+        // Get user_id from email
+        const { data: userData, error: userError } = await supabase
+            .from('user')
+            .select('user_id')
+            .eq('email', locals.user.email)
+            .single();
+
+        if (userError || !userData) {
+            return json({ error: 'User not found' }, { status: 404 });
+        }
+
         const { error: insertError } = await supabase
             .from('complaint')
             .insert([{
-                user_email: locals.user.email,
+                user_id: userData.user_id,
                 message: message.trim()
             }]);
 

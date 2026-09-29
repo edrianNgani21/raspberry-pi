@@ -9,6 +9,7 @@
     let loading = $state(true);
     let searchQuery = $state('');
     let statusFilter = $state('all');
+    let confirmLoading = $state(false);
 
     async function loadComplaints() {
         loading = true;
@@ -37,7 +38,7 @@
             });
 
             if (res.ok) {
-                complaints = complaints.map(c => c.id === id ? { ...c, status } : c);
+                complaints = complaints.map(c => c.complaint_id === id ? { ...c, status } : c);
             } else {
                 const json = await res.json();
                 alert(json.error || 'Failed to update complaint');
@@ -56,7 +57,7 @@
             });
 
             if (res.ok) {
-                complaints = complaints.map(c => c.id === id ? { ...c, schedule } : c);
+                complaints = complaints.map(c => c.complaint_id === id ? { ...c, schedule } : c);
             } else {
                 const json = await res.json();
                 alert(json.error || 'Failed to schedule meeting');
@@ -66,11 +67,38 @@
         }
     }
 
+    async function confirmSchedule(id: number, schedule: string) {
+        if (!schedule) {
+            alert('Please select a date and time first');
+            return;
+        }
+
+        confirmLoading = true;
+        try {
+            const res = await fetch(`/api/security/complaints/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ schedule, send_email: true })
+            });
+
+            if (res.ok) {
+                alert('Schedule confirmation email sent to complainant');
+            } else {
+                const json = await res.json();
+                alert(json.error || 'Failed to send confirmation email');
+            }
+        } catch (e) {
+            alert('Network error');
+        } finally {
+            confirmLoading = false;
+        }
+    }
+
     const filteredComplaints = $derived.by(() => {
         let filtered = complaints;
-        
+
         if (statusFilter !== 'all') {
-            filtered = filtered.filter(c => c.status === statusFilter);
+            filtered = filtered.filter(c => c.status.toLowerCase() === statusFilter.toLowerCase());
         }
 
         if (searchQuery) {
@@ -118,9 +146,8 @@
     <div class="filters">
       <select bind:value={statusFilter} class="filter-select">
         <option value="all">All Status</option>
-        <option value="pending">Pending</option>
-        <option value="scheduled">Scheduled</option>
-        <option value="resolved">Resolved</option>
+        <option value="Pending">Pending</option>
+        <option value="Resolved">Resolved</option>
       </select>
     </div>
   </div>
@@ -140,17 +167,17 @@
   {:else}
     <div class="complaints-list">
       {#each filteredComplaints as complaint}
-        <div class="complaint-card" class:card-scheduled={complaint.schedule && complaint.status !== 'resolved'} class:card-resolved={complaint.status === 'resolved'}>
+        <div class="complaint-card" class:card-scheduled={complaint.schedule && complaint.status !== 'Resolved'} class:card-resolved={complaint.status === 'Resolved'}>
           <div class="card-header">
             <div class="header-left">
-              <span class="complaint-email">{complaint.user_email}</span>
+              <span class="complaint-email">{complaint.sender_email || complaint.user_email}</span>
               <span class="complaint-date">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 {new Date(complaint.created_at).toLocaleString()}
               </span>
             </div>
             <div class="header-right">
-              {#if complaint.status === 'resolved'}
+              {#if complaint.status === 'Resolved'}
                 <span class="status-badge resolved">✓ Resolved</span>
               {:else if complaint.schedule}
                 <span class="status-badge scheduled">📅 Scheduled</span>
@@ -164,7 +191,7 @@
             <p class="complaint-message">{complaint.message}</p>
           </div>
 
-          {#if complaint.schedule && complaint.status !== 'resolved'}
+          {#if complaint.schedule && complaint.status !== 'Resolved'}
             <div class="schedule-banner">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               <div>
@@ -175,17 +202,28 @@
           {/if}
 
           <div class="card-actions">
-            {#if complaint.status !== 'resolved'}
+            {#if complaint.status !== 'Resolved'}
               <div class="action-group">
                 <input 
                   type="datetime-local" 
                   class="schedule-input"
                   value={complaint.schedule || ''}
-                  onchange={(e) => scheduleMeeting(complaint.id, (e.target as HTMLInputElement).value)}
+                  onchange={(e) => scheduleMeeting(complaint.complaint_id, (e.target as HTMLInputElement).value)}
                 />
                 <button 
+                  class="btn-action btn-confirm" 
+                  onclick={() => confirmSchedule(complaint.complaint_id, complaint.schedule)}
+                  disabled={!complaint.schedule || confirmLoading}
+                >
+                  {#if confirmLoading}
+                    Sending…
+                  {:else}
+                    Confirm & Send Email
+                  {/if}
+                </button>
+                <button 
                   class="btn-action btn-resolve" 
-                  onclick={() => updateComplaintStatus(complaint.id, 'resolved')}
+                  onclick={() => updateComplaintStatus(complaint.complaint_id, 'Resolved')}
                 >
                   Mark Resolved
                 </button>
@@ -451,6 +489,14 @@
     border: 1px solid rgba(34,197,94,0.3);
   }
   .btn-resolve:hover { background: rgba(34,197,94,0.2); }
+
+  .btn-confirm {
+    background: rgba(37,99,235,0.1);
+    color: #2563eb;
+    border: 1px solid rgba(37,99,235,0.3);
+  }
+  .btn-confirm:hover:not(:disabled) { background: rgba(37,99,235,0.2); }
+  .btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .resolved-note {
     font-size: 0.8rem;

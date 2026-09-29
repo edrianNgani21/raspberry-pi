@@ -13,10 +13,7 @@ export const GET: RequestHandler = async ({ request, url, locals }) => {
 
     const dateParam  = url.searchParams.get('date') || '';
     const search     = (url.searchParams.get('search') || '').trim().toLowerCase();
-    const typeFilter = url.searchParams.get('type')  || 'all';   // all | registered | guest
     const boundFilter= url.searchParams.get('bound') || 'all';   // all | in | out
-    const roleFilter = url.searchParams.get('role')  || 'all';   // all | student | employee | visitor | concessionaire
-    const campusFilter = url.searchParams.get('campus') || 'all';
     const page       = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
     const limit      = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '25')));
 
@@ -31,198 +28,58 @@ export const GET: RequestHandler = async ({ request, url, locals }) => {
         const tomorrow = new Date(new Date(dateFilter).getTime() + 86400000).toISOString().split('T')[0];
 
         // ── Registered entries ──────────────────────────────────────────────
-        const hasRegRoles = roleFilter === 'all' || roleFilter.split(',').some(r => r !== 'guest');
-        const regRoles = roleFilter !== 'all' ? roleFilter.split(',').filter(r => r !== 'guest') : [];
-
         let regRows: any[] = [];
-        if (typeFilter !== 'guest' && hasRegRoles) {
-            let query = supabase
-                .from('vehicle_log')
-                .select(`
-                    vehicle_log_id,
-                    check_in,
-                    check_out,
-                    pic_in,
-                    pic_out,
-                    logged_status,
-                    logged_status_out,
-                    reason,
-                    registration:registration_id(
-                        first_name,
-                        last_name,
-                        vehicle_make,
-                        vehicle_plate,
-                        role,
-                        campus
-                    )
-                `)
-                .or(`check_in.gte.${dateFilter},and(check_out.gte.${dateFilter},check_out.is.null)`)
-                .or(`check_in.gte.${dateFilter},and(check_out.gte.${dateFilter},check_out.not.null)`);
+        let query = supabase
+            .from('vehicle_log')
+            .select(`
+                vehicle_log_id,
+                vehicle_information_id,
+                registration_id,
+                check_in,
+                check_out,
+                logged_status,
+                created_at
+            `)
+            .gte('check_in', dateFilter)
+            .lt('check_in', tomorrow);
 
-            if (regRoles.length > 0) {
-                query = query.in('registration.role', regRoles);
-            }
-
-            if (campusFilter !== 'all') {
-                query = query.eq('registration.campus', campusFilter);
-            }
-
-            const { data } = await query;
-            if (data) {
-                regRows = data.map(row => ({
-                    ...row,
-                    log_type: 'registered',
-                    timestamp_in: row.check_in,
-                    timestamp_out: row.check_out
-                }));
-            }
+        const { data } = await query;
+        if (data) {
+            regRows = data.map(row => ({
+                ...row,
+                log_type: 'registered'
+            }));
         }
 
         // ── Guest entries ────────────────────────────────────────────────────
-        const isGuestIncluded = (roleFilter === 'all' || roleFilter.split(',').includes('guest')) && campusFilter === 'all';
         let guestRows: any[] = [];
-        if (typeFilter !== 'registered' && isGuestIncluded) {
-            const { data } = await supabase
-                .from('guestlog')
-                .select('*')
-                .or(`in.gte.${dateFilter},and(out.gte.${dateFilter},out.is.null)`)
-                .or(`in.gte.${dateFilter},and(out.gte.${dateFilter},out.not.null)`);
-
-            if (data) {
-                guestRows = data.map(row => ({
-                    ...row,
-                    log_type: 'guest',
-                    vehicle_make: row.make_model,
-                    vehicle_plate: row.plate,
-                    timestamp_in: row.in,
-                    timestamp_out: row.out
-                }));
-            }
-        }
-
-        // ── VIP entries ──────────────────────────────────────────────────────
-        const isVipIncluded = (roleFilter === 'all' || roleFilter.split(',').includes('vip')) && campusFilter === 'all';
         let vipRows: any[] = [];
-        if (typeFilter !== 'registered' && typeFilter !== 'guest' && isVipIncluded) {
-            const { data } = await supabase
-                .from('vip_log')
-                .select('*')
-                .gte('timestamp', dateFilter)
-                .lt('timestamp', tomorrow);
 
-            if (data) {
-                vipRows = data;
-            }
-        }
-
-        // ── Flatten to log events ────────────────────────────────────────────
+        // ── Process logs ─────────────────────────────────────────────────────
         const logs: any[] = [];
 
         regRows.forEach(row => {
-            const inDate = new Date(row.timestamp_in);
-            const isStandaloneOut = row.timestamp_out && row.timestamp_in.getTime() === new Date(row.timestamp_out).getTime();
-
-            if (!isStandaloneOut && (boundFilter === 'all' || boundFilter === 'in')) {
-                logs.push({
-                    id: `reg-in-${row.vehicle_log_id}`,
-                    date: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(inDate),
-                    time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).format(inDate),
-                    name: `${row.registration.first_name} ${row.registration.last_name}`,
-                    role: row.registration.role,
-                    make: row.registration.vehicle_make,
-                    plate: row.registration.vehicle_plate,
-                    campus: row.registration.campus,
-                    bound: 'In',
-                    type: 'Registered',
-                    photo: row.pic_in,
-                    status: row.logged_status,
-                    reason: row.reason,
-                    timestamp: inDate.getTime()
-                });
-            }
-
-            if (row.timestamp_out && (boundFilter === 'all' || boundFilter === 'out')) {
-                const outDate = new Date(row.timestamp_out);
-                logs.push({
-                    id: `reg-out-${row.vehicle_log_id}`,
-                    date: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(outDate),
-                    time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).format(outDate),
-                    name: `${row.registration.first_name} ${row.registration.last_name}`,
-                    role: row.registration.role,
-                    make: row.registration.vehicle_make,
-                    plate: row.registration.vehicle_plate,
-                    campus: row.registration.campus,
-                    bound: 'Out',
-                    type: 'Registered',
-                    photo: row.pic_out,
-                    status: row.logged_status_out,
-                    reason: row.reason,
-                    timestamp: outDate.getTime()
-                });
-            }
-        });
-
-        guestRows.forEach(row => {
-            const inDate = new Date(row.timestamp_in);
-            const isStandaloneOut = row.timestamp_out && row.timestamp_in.getTime() === new Date(row.timestamp_out).getTime();
-
-            if (!isStandaloneOut && (boundFilter === 'all' || boundFilter === 'in')) {
-                logs.push({
-                    id: `guest-in-${row.guest_id}`,
-                    date: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(inDate),
-                    time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).format(inDate),
-                    name: `Guest (${row.ticket_no})`,
-                    role: 'guest',
-                    make: row.vehicle_make,
-                    plate: row.vehicle_plate,
-                    bound: 'In',
-                    type: 'Guest',
-                    photo: row.pic_in,
-                    status: row.logged_status,
-                    timestamp: inDate.getTime()
-                });
-            }
-
-            if (row.timestamp_out && (boundFilter === 'all' || boundFilter === 'out')) {
-                const outDate = new Date(row.timestamp_out);
-                logs.push({
-                    id: `guest-out-${row.guest_id}`,
-                    date: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(outDate),
-                    time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).format(outDate),
-                    name: `Guest (${row.ticket_no})`,
-                    role: 'guest',
-                    make: row.vehicle_make,
-                    plate: row.vehicle_plate,
-                    bound: 'Out',
-                    type: 'Guest',
-                    photo: row.pic_out,
-                    status: row.logged_status_out,
-                    timestamp: outDate.getTime()
-                });
-            }
-        });
-
-        vipRows.forEach(row => {
-            const rowDate = new Date(row.timestamp);
-            const bound = row.type === 'in' ? 'In' : 'Out';
+            const inDate = new Date(row.check_in);
+            const hasCheckout = row.check_out !== null;
             
-            if (boundFilter === 'all' || boundFilter.toLowerCase() === row.type) {
+            // Apply bound filter
+            if (boundFilter === 'all' || 
+                (boundFilter === 'in' && !hasCheckout) || 
+                (boundFilter === 'out' && hasCheckout)) {
                 logs.push({
-                    id: `vip-${row.id}`,
-                    date: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(rowDate),
-                    time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).format(rowDate),
-                    name: 'VIP',
-                    role: 'vip',
-                    make: 'VIP Vehicle',
-                    plate: 'VIP',
-                    bound: bound,
-                    type: 'VIP',
-                    photo: null,
-                    status: null,
-                    timestamp: rowDate.getTime()
+                    vehicle_log_id: row.vehicle_log_id,
+                    vehicle_information_id: row.vehicle_information_id,
+                    registration_id: row.registration_id,
+                    check_in: row.check_in,
+                    check_out: row.check_out,
+                    logged_status: row.logged_status,
+                    created_at: row.created_at,
+                    timestamp: inDate.getTime()
                 });
             }
         });
+
+
 
         // ── Sort descending ──────────────────────────────────────────────────
         logs.sort((a, b) => b.timestamp - a.timestamp);
@@ -232,11 +89,13 @@ export const GET: RequestHandler = async ({ request, url, locals }) => {
         if (search) {
             const terms = search.split(/\s+/).filter(Boolean);
             filtered = logs.filter(l => {
-                const fullString = Object.values(l)
-                    .filter(val => val !== null && val !== undefined)
-                    .map(val => String(val).toLowerCase())
-                    .join(' ');
-                return terms.every(term => fullString.includes(term));
+                const searchableFields = [
+                    String(l.vehicle_log_id),
+                    String(l.registration_id),
+                    String(l.vehicle_information_id),
+                    String(l.logged_status)
+                ].join(' ').toLowerCase();
+                return terms.every(term => searchableFields.includes(term));
             });
         }
 

@@ -63,7 +63,7 @@
             });
 
             if (res.ok) {
-                complaints = complaints.filter(c => c.id !== id);
+                complaints = complaints.filter(c => c.complaint_id !== id);
             } else {
                 const json = await res.json();
                 alert(json.error || 'Failed to delete complaint');
@@ -199,8 +199,8 @@
                 {:else}
                   <span class="pending-note">Please attend your scheduled meeting</span>
                 {/if}
-                {#if !c.is_read}
-                  <button class="btn-delete" onclick={() => deleteComplaint(c.id)}>
+                {#if c.status !== 'resolved'}
+                  <button class="btn-delete" onclick={() => deleteComplaint(c.complaint_id)}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                     Delete
                   </button>

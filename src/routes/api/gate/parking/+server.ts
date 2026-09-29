@@ -19,11 +19,12 @@ export const GET: RequestHandler = async ({ request, locals }) => {
         // Get current parking capacity settings
         const { data: settingsData } = await supabase
             .from('parking_availability')
-            .select('parking_capacity, max_capacity')
-            .eq('id', 1)
-            .single();
+            .select('parking_capacity')
+            .order('date_time', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+        const parking_capacity = settingsData?.parking_capacity ?? 0;
 
         // Get current slot counts from the most recent parking availability record
         const { data: lastParkingData } = await supabase
@@ -31,7 +32,7 @@ export const GET: RequestHandler = async ({ request, locals }) => {
             .select('slot_occupied, slot_unoccupied, date_time')
             .order('date_time', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
         const current_occupied = lastParkingData?.slot_occupied || 0;
         const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;

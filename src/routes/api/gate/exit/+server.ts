@@ -85,11 +85,12 @@ export const POST: RequestHandler = async ({ request }) => {
             // Get current parking capacity settings
             const { data: settingsData } = await supabase
                 .from('parking_availability')
-                .select('parking_capacity, max_capacity')
-                .eq('id', 1)
-                .single();
+                .select('parking_capacity')
+                .order('date_time', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            const parking_capacity = settingsData?.max_capacity ?? settingsData?.parking_capacity ?? 0;
+            const parking_capacity = settingsData?.parking_capacity ?? 0;
 
             // Get current slot counts from the most recent parking availability record
             const { data: lastParkingData } = await supabase
@@ -97,7 +98,7 @@ export const POST: RequestHandler = async ({ request }) => {
                 .select('slot_occupied, slot_unoccupied')
                 .order('date_time', { ascending: false })
                 .limit(1)
-                .single();
+                .maybeSingle();
 
             const current_occupied = lastParkingData?.slot_occupied || 0;
             const current_unoccupied = lastParkingData?.slot_unoccupied || parking_capacity;
@@ -113,7 +114,8 @@ export const POST: RequestHandler = async ({ request }) => {
                     vehicle_log_id,
                     parking_capacity,
                     slot_occupied: new_occupied,
-                    slot_unoccupied: new_unoccupied
+                    slot_unoccupied: new_unoccupied,
+                    date_time: new Date().toISOString()
                 });
 
             if (parkingError) throw parkingError;

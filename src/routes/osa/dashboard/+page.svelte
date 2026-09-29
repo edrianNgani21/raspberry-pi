@@ -29,16 +29,18 @@
             value: statsData.totalApplications,
             desc: 'All vehicle registration applications',
             icon: `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>`,
-            color: '#6b1a2a',
-            bg: 'rgba(107,26,42,0.08)'
+            color: 'var(--maroon)',
+            bg: 'var(--maroon-muted)',
+            border: 'var(--maroon-tint)'
         },
         {
             label: 'Pending Validation',
             value: statsData.pendingValidation,
             desc: 'Applications awaiting department validation',
             icon: `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`,
-            color: '#d97706',
-            bg: 'rgba(217,119,6,0.08)'
+            color: 'var(--gold)',
+            bg: 'var(--gold-muted)',
+            border: 'var(--gold-shimmer)'
         },
         {
             label: 'Pending Distribution',
@@ -46,7 +48,8 @@
             desc: 'Applications ready for sticker distribution',
             icon: `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`,
             color: '#059669',
-            bg: 'rgba(5,150,105,0.08)'
+            bg: '#ECFDF5',
+            border: '#A7F3D0'
         },
         {
             label: 'Completed Today',
@@ -54,7 +57,8 @@
             desc: 'Applications processed today',
             icon: `<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>`,
             color: '#2563eb',
-            bg: 'rgba(37,99,235,0.08)'
+            bg: '#EFF6FF',
+            border: '#BFDBFE'
         }
     ]);
 
@@ -96,14 +100,14 @@
         <!-- Stats Grid -->
         <div class="stats-grid">
             {#each statCards as card}
-                <div class="stat-card" style="--card-bg: {card.bg}; --card-color: {card.color}">
-                    <div class="stat-icon" style="color: {card.color}">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: {card.color}; background: rgba(255,255,255,0.5);">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             {@html card.icon}
                         </svg>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-value">{card.value}</div>
+                        <div class="stat-value" style="color: {card.color}">{card.value}</div>
                         <div class="stat-label">{card.label}</div>
                         <div class="stat-desc">{card.desc}</div>
                     </div>
@@ -143,7 +147,7 @@
                             <div class="recent-item">
                                 <div class="recent-info">
                                     <div class="recent-email">{app.user?.email || 'Unknown'}</div>
-                                    <div class="recent-dept">{app.department?.department_name || 'No Department'}</div>
+                                    <div class="recent-dept">{app.department?.department || app.department?.department_name || 'No Department'}</div>
                                 </div>
                                 <div class="recent-status" class:status-pending={app.status === 'pending'} class:status-dept_val={app.status === 'dept_val'} class:status-osa_val={app.status === 'osa_val'} class:status-distributed={app.status === 'distributed'} class:status-completed={app.status === 'completed'} class:status-rejected={app.status === 'rejected'} class:status-revoked={app.status === 'revoked'}>
                                     {statusLabels[app.status] || app.status}
@@ -169,7 +173,7 @@
 
 <style>
     .dashboard-container {
-        padding: 2rem;
+        padding: var(--space-xl);
         max-width: 1400px;
         margin: 0 auto;
     }
@@ -178,87 +182,112 @@
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 2rem;
-        gap: 1rem;
+        margin-bottom: var(--space-2xl);
+        gap: var(--space-lg);
     }
 
     .header-content h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin: 0 0 0.5rem 0;
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin: 0 0 var(--space-sm) 0;
         color: var(--text-primary);
+        letter-spacing: -0.02em;
+        background: var(--gradient-maroon);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
     .header-subtitle {
-        font-size: 0.95rem;
+        font-size: 1rem;
         color: var(--text-secondary);
         margin: 0;
+        font-weight: 500;
     }
 
     .header-actions {
         display: flex;
-        gap: 0.75rem;
+        gap: var(--space-md);
     }
 
     .action-btn {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.25rem;
-        border-radius: 8px;
+        gap: var(--space-sm);
+        padding: var(--space-sm) var(--space-lg);
+        border-radius: var(--radius-md);
         font-size: 0.875rem;
         font-weight: 600;
         text-decoration: none;
-        transition: all 0.2s;
-        border: none;
-        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 2px solid transparent;
     }
 
     .action-btn.primary {
-        background: var(--maroon);
+        background: var(--gradient-maroon);
         color: white;
+        box-shadow: var(--shadow-gold-sm);
     }
 
     .action-btn.primary:hover {
-        background: var(--maroon-light);
-        transform: translateY(-1px);
-    }
-
-    h2 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin: 0;
+        background: var(--gradient-gold);
         color: var(--text-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-gold-md);
     }
 
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
+        gap: var(--space-lg);
+        margin-bottom: var(--space-2xl);
     }
 
     .stat-card {
-        background: var(--card-bg);
-        border: 1px solid rgba(0,0,0,0.05);
-        border-radius: 16px;
-        padding: 1.5rem;
+        background: var(--surface);
+        border: 2px solid var(--border-light);
+        border-radius: var(--radius-xl);
+        padding: var(--space-lg);
         display: flex;
         align-items: flex-start;
-        gap: 1rem;
-        transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        gap: var(--space-md);
+        box-shadow: var(--shadow-md);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--maroon);
+        opacity: 0;
+        transition: opacity 0.3s;
     }
 
     .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .stat-card:hover::before {
+        opacity: 1;
     }
 
     .stat-icon {
-        padding: 0.75rem;
-        border-radius: 12px;
-        background: var(--card-bg);
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: 2px solid var(--border-light);
+        box-shadow: var(--shadow-sm);
     }
 
     .stat-content {
@@ -266,195 +295,258 @@
     }
 
     .stat-value {
-        font-size: 2.25rem;
-        font-weight: 700;
-        color: var(--card-color);
+        font-size: 2.5rem;
+        font-weight: 800;
         line-height: 1;
-        margin-bottom: 0.25rem;
+        margin-bottom: var(--space-xs);
+        letter-spacing: -0.02em;
     }
 
     .stat-label {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         font-weight: 600;
         color: var(--text-primary);
-        margin-bottom: 0.25rem;
+        margin-bottom: var(--space-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     .stat-desc {
         font-size: 0.8rem;
-        color: var(--text-secondary);
+        color: var(--text-muted);
+        line-height: 1.4;
     }
 
     .dashboard-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    @media (max-width: 1024px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr;
-        }
+        gap: var(--space-lg);
     }
 
     .breakdown-section,
     .recent-section {
-        background: var(--card-bg);
-        border: 1px solid rgba(0,0,0,0.05);
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        background: var(--surface);
+        border: 2px solid var(--border-light);
+        border-radius: var(--radius-xl);
+        padding: var(--space-lg);
+        box-shadow: var(--shadow-md);
     }
 
     .section-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: var(--space-lg);
+        padding-bottom: var(--space-md);
+        border-bottom: 2px solid var(--border-light);
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--maroon);
+        margin: 0;
+        letter-spacing: -0.01em;
     }
 
     .section-badge {
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.25rem 0.75rem;
         background: var(--maroon-muted);
         color: var(--maroon);
-        border-radius: 9999px;
+        padding: var(--space-xs) var(--space-sm);
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border: 1px solid var(--maroon-tint);
     }
 
     .breakdown-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
     }
 
     .breakdown-item {
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
+        align-items: center;
+        gap: var(--space-md);
     }
 
     .breakdown-label {
+        min-width: 120px;
         font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--text-primary);
+        font-weight: 500;
+        color: var(--text-secondary);
     }
 
     .breakdown-bar {
-        height: 6px;
-        background: #e5e7eb;
-        border-radius: 3px;
+        flex: 1;
+        height: 8px;
+        background: var(--maroon-muted);
+        border-radius: var(--radius-xl);
         overflow: hidden;
+        position: relative;
     }
 
     .breakdown-fill {
         height: 100%;
-        background: var(--maroon);
-        border-radius: 3px;
-        transition: width 0.3s ease;
+        background: var(--gradient-maroon);
+        border-radius: var(--radius-xl);
+        transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+
+    .breakdown-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
     }
 
     .breakdown-value {
-        font-size: 1.125rem;
+        min-width: 30px;
+        text-align: right;
+        font-size: 0.85rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--maroon);
     }
 
     .recent-list {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: var(--space-sm);
     }
 
     .recent-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1rem;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
+        padding: var(--space-md);
+        background: var(--surface-2);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
         transition: all 0.2s;
     }
 
     .recent-item:hover {
-        border-color: var(--maroon);
-        transform: translateX(2px);
+        background: var(--maroon-muted);
+        transform: translateX(-2px);
+        border-color: var(--maroon-tint);
     }
 
     .recent-info {
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
+        gap: var(--space-xs);
     }
 
     .recent-email {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
         color: var(--text-primary);
     }
 
     .recent-dept {
-        font-size: 0.8rem;
-        color: var(--text-secondary);
+        font-size: 0.75rem;
+        color: var(--text-muted);
     }
 
     .recent-status {
-        padding: 0.25rem 0.75rem;
-        border-radius: 9999px;
+        padding: var(--space-xs) var(--space-sm);
+        border-radius: var(--radius-sm);
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    .status-pending { background: #fef3c7; color: #92400e; }
-    .status-dept_val { background: #dbeafe; color: #1e40af; }
-    .status-osa_val { background: #d1fae5; color: #065f46; }
-    .status-distributed { background: #ecfdf5; color: #047857; }
-    .status-completed { background: #d1fae5; color: #047857; }
-    .status-rejected { background: #fee2e2; color: #b91c1c; }
-    .status-revoked { background: #fef3c7; color: #92400e; }
+    .recent-status.status-pending {
+        background: #FFFBEB;
+        color: #B45309;
+        border: 1px solid #FDE68A;
+    }
+
+    .recent-status.status-dept_val {
+        background: #EFF6FF;
+        color: #3B82F6;
+        border: 1px solid #BFDBFE;
+    }
+
+    .recent-status.status-osa_val {
+        background: #F3E8FF;
+        color: #7C3AED;
+        border: 1px solid #DDD6FE;
+    }
+
+    .recent-status.status-distributed {
+        background: #ECFDF5;
+        color: #047857;
+        border: 1px solid #A7F3D0;
+    }
+
+    .recent-status.status-completed {
+        background: #D1FAE5;
+        color: #047857;
+        border: 1px solid #6EE7B7;
+    }
+
+    .recent-status.status-rejected {
+        background: #FEF2F2;
+        color: #B91C1C;
+        border: 1px solid #FCA5A5;
+    }
+
+    .recent-status.status-revoked {
+        background: #FFF7ED;
+        color: #C2410C;
+        border: 1px solid #FED7AA;
+    }
 
     .no-data {
-        text-align: center;
-        padding: 2rem;
-        color: var(--text-secondary);
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1rem;
+        justify-content: center;
+        padding: var(--space-2xl);
+        color: var(--text-muted);
+        gap: var(--space-md);
     }
 
     .no-data svg {
-        color: var(--text-dim);
+        color: var(--border);
     }
 
     .no-data p {
-        margin: 0;
         font-size: 0.9rem;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    @media (max-width: 1024px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        }
     }
 
     @media (max-width: 768px) {
-        .dashboard-container {
-            padding: 1rem;
-        }
-
         .dashboard-header {
             flex-direction: column;
         }
 
         .header-content h1 {
-            font-size: 1.5rem;
+            font-size: 2rem;
         }
 
         .stats-grid {
             grid-template-columns: 1fr;
         }
-
-        .breakdown-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+}
 </style>
